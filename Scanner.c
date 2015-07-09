@@ -1,10 +1,16 @@
-
-
 //  Lexical Analyzer
-//
+//  --
+//  This is a Lexical Analyzer/Scaner for the PL/0 programming language.
+//  This will read a source program written in PL/0, identify some errors, and produce as output:
+//  the source program (without comments),
+//  the lexeme table,
+//  and the list of lexemes.
+//  --
 //  Created by:
 //  Alex Chatham
-//  Jesse Spencer, je017812
+//  Jesse Spencer
+//  
+//  
 
 
 
