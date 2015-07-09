@@ -1,9 +1,12 @@
 //
-//
-//  Project 1
-//
+//  Alexander Chatham
 //  Jesse Spencer
-//  je017812
+//  
+//  This is a P-Machine virtual machine
+//  The P- machine is a stack machine with two memory stores:
+//  stack, which is organized as a stack and contains the data to be used by the PM/0 CPU, and code, 
+//  which is organized as a list and contains the instructions for the VM. The PM/0 CPU has four registers. 
+//  The registers are base pointer bp, stack pointer sp, program counter pc and instruction register ir.
 //
 //  NOTES:
 //  - Input file name is hardcoded, must be named "mcode.txt" and be in the same directory
