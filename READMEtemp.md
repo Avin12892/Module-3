@@ -10,3 +10,6 @@ gcc nameOfFile.c -o nameOfProducedFile
 
 Then run them using ./nameOfExecutable
 CompileDriver will run the full program
+
+WARNING
+Result of compiling and running on a non Unix-based system, or using a compiler other than GCC, is unknown.
