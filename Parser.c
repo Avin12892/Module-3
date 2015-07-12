@@ -67,8 +67,30 @@ typedef enum {
 
 // Op codes
 typedef enum {
-    LIT = 1, RTN, LOD, STO, CAL, INC, JMP, JPC, SIO1, SIO2, SIO3,
-    NEG, ADD, SUB, MUL, DIV, ODD, MOD, EQL, NEQ, LSS, LEQ, GTR, GEQ
+    LIT = 1,
+    RTN,
+    LOD,
+    STO,
+    CAL,
+    INC,
+    JMP,
+    JPC,
+    SIO1,
+    SIO2,
+    SIO3,
+    NEG,
+    ADD,
+    SUB,
+    MUL,
+    DIV,
+    ODD,
+    MOD,
+    EQL,
+    NEQ,
+    LSS,
+    LEQ,
+    GTR,
+    GEQ
 } op_code;
 
 
@@ -93,18 +115,6 @@ typedef struct {
     int l;
     int m;
 } instruction;
-
-
-// Global variables
-int currentToken;
-int currentRegister;
-symbol symbolList[50];
-symbol symbolTable[100];
-int symbolTableIndex;
-int codeLine;
-instruction code[CODE_BUFFER];
-int printSuccess;
-int level;
 
 
 // Functions
@@ -133,22 +143,31 @@ node* getLexemeList();
 int getSymbolList(symbol* st);
 void destroyNodes(node* headNode);
 void emit(int op, int r, int l, int m);
-void printCode();
+void printCodeToFile();
 void printNodes(node** head);
 
 
-int main(int argc, char **argv) {
+// Global variables
+int currentToken;
+int currentRegister;
+symbol symbolList[50];
+symbol symbolTable[100];
+int symbolTableIndex;
+int codeLine;
+instruction code[CODE_BUFFER];
+int printSuccess;
+int level;
+
+
+int main(int argc, char* argv[]) {
     
-    
+    // Initialize globals that need it
     currentRegister = -1;
-    codeLine = 0;
-    printSuccess = 0;
     level = -1;
-    symbolTableIndex = 0;
     
     
     // if Compile Driver passes an argument, then print to screen the success result
-    if ( argc > 1 ) {
+    if (argc > 1) {
         printSuccess = 1;
     }
     
@@ -158,20 +177,20 @@ int main(int argc, char **argv) {
     currentNode = getLexemeList();
     
     // Retrieve the symbol table and store it
-    int symbolTableSize = getSymbolList( symbolList );
+    int symbolTableSize = getSymbolList(symbolList);
     
     
     // Begin processing
-    program( currentNode );
+    program(currentNode);
     
-    printCode();
+    printCodeToFile();
     
     
     return 0;
 }
 
 
-void program( node *currentNode )
+void program(node* currentNode)
 {
     // get the first token
     nextLexeme( currentNode );
@@ -192,7 +211,7 @@ void program( node *currentNode )
 }
 
 
-void block( node *currentNode )
+void block(node* currentNode)
 {
     int space, numVars = 0, numProcs = 0, numConsts = 0;
     int jmpAddress, procAddress;
@@ -250,7 +269,7 @@ void block( node *currentNode )
 }
 
 
-int const_declaration( node *currentNode )
+int const_declaration(node* currentNode)
 {
     int symListIndex, constIndex, constValue;
     int constCount = 0;
@@ -311,7 +330,7 @@ int const_declaration( node *currentNode )
 
 
 // returns # of variables declared
-int var_declaration( node *currentNode )
+int var_declaration(node* currentNode)
 {
     int symListIndex;
     int varCount = 0;
@@ -356,7 +375,7 @@ int var_declaration( node *currentNode )
 }
 
 
-int procedure_declaration( node *currentNode )
+int procedure_declaration(node* currentNode)
 {
     int symListIndex, procCount = 0;
     
@@ -401,8 +420,8 @@ int procedure_declaration( node *currentNode )
 }
 
 
-void statement( node *currentNode )
-{
+void statement(node* currentNode) {
+    
     int i, ctemp, cx1, cx2;
     int index;
     
@@ -612,7 +631,7 @@ void statement( node *currentNode )
 }
 
 
-void condition( node *currentNode )
+void condition(node* currentNode)
 {
     int relOpCode;
     
@@ -648,7 +667,7 @@ void condition( node *currentNode )
 }
 
 // returns token value for relational op, returns 0 if it is not one
-int rel_op (  )
+int rel_op()
 {
     switch ( currentToken )
     {
@@ -677,7 +696,7 @@ int rel_op (  )
 }
 
 
-void expression( node *currentNode )
+void expression(node* currentNode)
 {
     int addop;
     
@@ -746,7 +765,7 @@ void checkCode(node *currentNode) {
 }
 
 
-void factor( node *currentNode )
+void factor(node* currentNode)
 {
     int index, i;
     int value;
@@ -922,7 +941,7 @@ node* getLexemeList() {
 
 
 // Retrieve the next tokenized lexeme from the linked list
-void nextLexeme(node *currentNode) {
+void nextLexeme(node* currentNode) {
     
     currentToken = currentNode->token;
     
@@ -934,7 +953,7 @@ void nextLexeme(node *currentNode) {
 
 
 // insert a new node into the linked list
-node *insertNode(node* head, node* tail, int token)
+node* insertNode(node* head, node* tail, int token)
 {
     // if this is the first node
     if ( head == NULL )
@@ -950,7 +969,7 @@ node *insertNode(node* head, node* tail, int token)
 }
 
 
-node *newNode(int data) {
+node* newNode(int data) {
     
     node *pointer = malloc(sizeof(node));
     
@@ -999,7 +1018,7 @@ int getSymbolList(symbol* symList) {
 
 
 // Print the code to output
-void emit( int op, int r, int l, int m )
+void emit(int op, int r, int l, int m)
 {
     code[codeLine].op = op;
     code[codeLine].r = r;
@@ -1013,8 +1032,8 @@ void emit( int op, int r, int l, int m )
 }
 
 
-// prints the generated code to the code.txt output file
-void printCode()
+// Prints code to output file
+void printCodeToFile()
 {
     int i;
     
@@ -1030,8 +1049,8 @@ void printCode()
 }
 
 
-// adds the symbol from the symbol table list (from Scanner) to the symbol table
-void addtoSymbolTable( int symbolKind, int symListIndex ) {
+// Put symbol from Scanner into table
+void addtoSymbolTable(int symbolKind, int symListIndex) {
     
     symbolTableIndex++;
     
@@ -1044,8 +1063,8 @@ void addtoSymbolTable( int symbolKind, int symListIndex ) {
 }
 
 
-// finds the location of the token in the symbol table
-int findToken( int token ) {
+// Locates a token in the symbol table
+int findToken(int token) {
     
     int location;
     

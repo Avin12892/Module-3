@@ -34,7 +34,7 @@ typedef struct
 } instruction;
 
 // function definitions
-void printCode( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength );
+void printCodeToFile( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength );
 
 instruction fetch( int programCounter, int code[][MAX_CODE_LENGTH] );
 
@@ -130,7 +130,7 @@ int main(void)
     FILE *ofp = fopen("stacktrace.txt", "w+");
     
     // print the code to file
-    printCode(ofp, code, codeLen);
+    printCodeToFile(ofp, code, codeLen);
     
     
     // print headers for the stack info
@@ -293,7 +293,7 @@ int main(void)
 
 
 // prints the code to the output file
-void printCode( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength )
+void printCodeToFile( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength )
 {
     int i, j;
     

@@ -2,7 +2,7 @@ Source Program:
 var x, y;
 begin
    x := y + 56;
-end.
+end
 
 Lexeme Table:
 lexeme		token type
@@ -19,7 +19,6 @@ y		2
 56		3
 ;		18
 end		22
-.		19
 
 Symbol Table:
 index		symbol
@@ -28,4 +27,4 @@ index		symbol
 2		56 
 
 Lexeme List:
-29 2 0 17 2 1 18 21 2 0 20 2 1 4 3 2 18 22 19 
+29 2 0 17 2 1 18 21 2 0 20 2 1 4 3 2 18 22 
