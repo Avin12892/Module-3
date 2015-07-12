@@ -121,8 +121,8 @@ int  rel_op();
 void expression(node* currentNode);
 void checkCode(node* currentNode);
 void factor(node* currentNode);
-void getNextToken(node* currentNode);
-void error(int errorVal);
+void nextLexeme(node* currentNode);
+void error(int errorType);
 void addtoSymbolTable(int symbolKind, int symListIndex);
 int findToken(int token);
 //
@@ -171,12 +171,10 @@ int main(int argc, char **argv) {
 }
 
 
-// checks to make sure this block of code fits the definition for a program
-// as defined by the EBNF grammar
 void program( node *currentNode )
 {
     // get the first token
-    getNextToken( currentNode );
+    nextLexeme( currentNode );
     
     block( currentNode );
     
@@ -191,11 +189,9 @@ void program( node *currentNode )
         if ( printSuccess )
             printf("No errors, program is syntactically correct\n" );
     }
-}// end function program
+}
 
 
-// checks to make sure this block of code fits the definition for a block
-// as defined by EBNF
 void block( node *currentNode )
 {
     int space, numVars = 0, numProcs = 0, numConsts = 0;
@@ -251,11 +247,9 @@ void block( node *currentNode )
     
     level--;
     
-}// end function block
+}
 
 
-// checks to make sure this block of code fits the definition for the constant
-// declaration as defined by EBNF
 int const_declaration( node *currentNode )
 {
     int symListIndex, constIndex, constValue;
@@ -265,21 +259,21 @@ int const_declaration( node *currentNode )
     // (indicated by a comma)
     do{
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
             error(4);
         
         // gets the index in the symbol table of the current identifier,
         // and changes its kind to a constant
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         symListIndex = currentToken;
         addtoSymbolTable( constant, symListIndex );
         constCount++;
         
         //symbolTable[stIndex].kind = constant;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         if ( currentToken != eqlsym )
         {
             if ( currentToken == becomessym )
@@ -289,19 +283,19 @@ int const_declaration( node *currentNode )
         }
         
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != numbersym )
             error(2);
         
         // get the value the constant is set to, and sets the value of the
         // constant to the value of the integer
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         constIndex = currentToken;
         constValue = atoi( symbolList[constIndex].name );
         symbolTable[symbolTableIndex].val = constValue;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
     } while ( currentToken == commasym );
     
@@ -309,16 +303,14 @@ int const_declaration( node *currentNode )
     if ( currentToken != semicolonsym )
         error(5);
     
-    getNextToken( currentNode );
+    nextLexeme( currentNode );
     
     return constCount;
     
-}// end function const_declaration
+}
 
 
-
-// checks to make sure this block of code fits the definition for the variable
-// declaration as defined by EBNF, and returns # of variables declared
+// returns # of variables declared
 int var_declaration( node *currentNode )
 {
     int symListIndex;
@@ -328,12 +320,12 @@ int var_declaration( node *currentNode )
     // (indicated by a comma)
     do{
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
             error(4);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         // get the symbol table index for the variable and initialize the
         // appropriate symbol table values
@@ -345,7 +337,7 @@ int var_declaration( node *currentNode )
         // items in activation record  (space from base pointer)
         
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         // keep track of the number of variables declared
         varCount++;
@@ -356,29 +348,26 @@ int var_declaration( node *currentNode )
     if ( currentToken != semicolonsym )
         error(5);
     
-    getNextToken( currentNode );
+    nextLexeme( currentNode );
     //emit( INC, 0 , 0, varCount );     // INC
     
     return varCount;
     
-}// end function var_declaration
+}
 
 
-
-// checks to make sure this block of code fits the definition for the procedure
-// declaration as defined by the EBNF
 int procedure_declaration( node *currentNode )
 {
     int symListIndex, procCount = 0;
     
     do{
         procCount++;
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
             error(4);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         // get the symbol table index for the variable and initialize the
         // appropriate symbol table values
@@ -389,13 +378,13 @@ int procedure_declaration( node *currentNode )
         
         //printf("Procedure %s is at line %d\n", symbolTable[stIndex].name, symbolTable[stIndex].addr);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         // if there are no more const, then we should have a semicolon
         if ( currentToken != semicolonsym )
             error(5);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         block( currentNode );
         
@@ -403,18 +392,15 @@ int procedure_declaration( node *currentNode )
         if ( currentToken != semicolonsym )
             error(5);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
     } while ( currentToken == procsym );
     
     return procCount;
     
-}// end function procedure_declaration
+}
 
 
-
-// checks to make sure this block of code fits the definition for the statement
-// as defined by EBNF
 void statement( node *currentNode )
 {
     int i, ctemp, cx1, cx2;
@@ -423,7 +409,7 @@ void statement( node *currentNode )
     // ident ":=" expression
     if (currentToken == identsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         i = currentToken;
         
@@ -438,12 +424,12 @@ void statement( node *currentNode )
             error(8);
         }
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != becomessym )
             error(9);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         expression( currentNode );
         
@@ -455,12 +441,12 @@ void statement( node *currentNode )
     // "call" ident
     else if ( currentToken == callsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
             error(23);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         i = findToken( currentToken );
         
@@ -473,7 +459,7 @@ void statement( node *currentNode )
         // printf( "CAL on index %d for %s is at location %d\n", i, symbolTable[i].name, symbolTable[i].addr);
         emit ( CAL, 0, level - symbolTable[i].level, symbolTable[i].addr ); // CAL = 5
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
     }
     
@@ -481,34 +467,34 @@ void statement( node *currentNode )
     // "begin" statement { ";" statement } "end"
     else if ( currentToken == beginsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         statement( currentNode );
         
         while ( currentToken == semicolonsym )
         {
-            getNextToken( currentNode );
+            nextLexeme( currentNode );
             statement( currentNode );
         }
         
         if ( currentToken != endsym )
             error(11);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
     }// end "begin" if
     
     
     // "if" condition "then" statement ["else" statement]
     else if ( currentToken == ifsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         condition( currentNode );
         
         if ( currentToken != thensym )
             error(10);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         ctemp = codeLine;
         emit( JPC, currentRegister, 0, 0 );    // JPC
@@ -518,7 +504,7 @@ void statement( node *currentNode )
         
         if ( currentToken == elsesym )
         {
-            getNextToken( currentNode );
+            nextLexeme( currentNode );
             
             cx2 = codeLine;
             emit (JMP, 0, 0, 0 );
@@ -540,7 +526,7 @@ void statement( node *currentNode )
     {
         cx1 = codeLine;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         condition( currentNode );
         
@@ -551,7 +537,7 @@ void statement( node *currentNode )
         if ( currentToken != dosym )
             error(12);          // then expected
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         statement( currentNode );
         
@@ -564,14 +550,14 @@ void statement( node *currentNode )
     // "read" ident
     else if ( currentToken == readsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
         {
             error(18);
         }
         
-        getNextToken(currentNode);
+        nextLexeme(currentNode);
         
         i = currentToken;
         index = findToken(i);
@@ -587,21 +573,21 @@ void statement( node *currentNode )
         emit( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // STO
         currentRegister--;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
     }// end "read" if
     
     // "write"  ident
     else if ( currentToken == writesym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         if ( currentToken != identsym )
         {
             error(18);
         }
         
-        getNextToken(currentNode);
+        nextLexeme(currentNode);
         i = currentToken;
         index = findToken(i);
         
@@ -616,18 +602,16 @@ void statement( node *currentNode )
         emit( SIO1, currentRegister, 0, 1 );    // SIO R 0 1 - print
         currentRegister--;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
     }// end "write" if
     
     // empty string do nothing
     
     
-}// end function statement
+}
 
 
-// checks to make sure this block of code fits the definition for the condtion
-// as defined by the EBNF
 void condition( node *currentNode )
 {
     int relOpCode;
@@ -635,7 +619,7 @@ void condition( node *currentNode )
     // "odd" expression
     if ( currentToken == oddsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         expression( currentNode );
         
@@ -654,15 +638,14 @@ void condition( node *currentNode )
             error(13);
         }
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         
         expression( currentNode );
         
         emit( relOpCode, currentRegister-1, currentRegister-1, currentRegister );  // EQL thru GEQ
         currentRegister--;
     }
-}// end function condition
-
+}
 
 // returns token value for relational op, returns 0 if it is not one
 int rel_op (  )
@@ -694,8 +677,6 @@ int rel_op (  )
 }
 
 
-// checks to make sure this block of code fits the definition for expression
-// as defined by the EBNF
 void expression( node *currentNode )
 {
     int addop;
@@ -705,7 +686,7 @@ void expression( node *currentNode )
     {
         addop = currentToken;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         checkCode ( currentNode );
         
         emit( NEG, currentRegister, currentRegister, 0 );  // 12
@@ -719,7 +700,7 @@ void expression( node *currentNode )
     {
         addop = currentToken;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         checkCode( currentNode );
         
         if ( addop == plussym )
@@ -737,7 +718,6 @@ void expression( node *currentNode )
 }
 
 
-// Check to see that the code follows the EBNF definitions
 void checkCode(node *currentNode) {
     
     int mulOp;
@@ -749,7 +729,7 @@ void checkCode(node *currentNode) {
     {
         mulOp = currentToken;
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         factor( currentNode );
         
         if ( mulOp == multsym )     // Multiplication
@@ -763,11 +743,9 @@ void checkCode(node *currentNode) {
             currentRegister--;
         }
     }
-}// end function term
+}
 
 
-// checks to make sure this block of code fits the definition for factor
-// as defined by the EBNF
 void factor( node *currentNode )
 {
     int index, i;
@@ -776,7 +754,7 @@ void factor( node *currentNode )
     // identifier
     if ( currentToken == identsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         i = currentToken;
         index = findToken(i);
         
@@ -795,12 +773,12 @@ void factor( node *currentNode )
             error(14);
         }
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
     }
     // number
     else if ( currentToken == numbersym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         i = currentToken;
         //index = findToken(i);
         
@@ -808,45 +786,32 @@ void factor( node *currentNode )
         currentRegister++;
         emit( LIT, currentRegister, 0, value );                   // LIT = 1
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
     }
     // "(" expression ")"
     else if ( currentToken == lparentsym )
     {
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
         expression( currentNode );
         
         if ( currentToken != rparentsym )
             error(15);
         
-        getNextToken( currentNode );
+        nextLexeme( currentNode );
     }
     else
         error(16);
     
-}// end function factor
-
-
-
-// gets the next token in the lexeme list from lexeme list linked list
-void getNextToken(node *currentNode) {
-    
-    currentToken = currentNode->token;
-    
-    if (currentNode->next != NULL) {
-        *currentNode = *currentNode->next;
-    }
-    
 }
 
 
-
-// exits program and prints appropriate error message
-void error( int errorVal )
-{
+// Output an appropriate error message
+void error(int errorType) {
+    
     printf("Error ");
-    switch ( errorVal )
-    {
+    
+    switch (errorType) {
+            
         case 1:
             printf("1. Use = instead of :=.");
             break;
@@ -909,17 +874,17 @@ void error( int errorVal )
             break;
             
         default:
-            printf("No errors, program is syntactically correct.");
             break;
             
     }
     
-    printf( "\n" );
-    exit(1);
+    printf("\n");
+    
+    exit(-1);
 }
 
 
-// reads the lexeme list from file into a linked list and returns the head
+// Retrieve the lexeme list and store it, returns the head of the list
 node* getLexemeList() {
     
     int buffer;
@@ -947,7 +912,7 @@ node* getLexemeList() {
         
         tail = insertNode(head, tail, buffer);
         tail->token = buffer;
-    
+        
     }
     
     
@@ -956,8 +921,20 @@ node* getLexemeList() {
 }
 
 
+// Retrieve the next tokenized lexeme from the linked list
+void nextLexeme(node *currentNode) {
+    
+    currentToken = currentNode->token;
+    
+    if (currentNode->next != NULL) {
+        *currentNode = *currentNode->next;
+    }
+    
+}
+
+
 // insert a new node into the linked list
-node *insertNode( node *head, node *tail, int token )
+node *insertNode(node* head, node* tail, int token)
 {
     // if this is the first node
     if ( head == NULL )
@@ -986,7 +963,7 @@ node *newNode(int data) {
 
 
 // Retrieve the symbol table and store it in an array, returns the length
-int getSymbolList(symbol *symList) {
+int getSymbolList(symbol* symList) {
     
     char buffer[MAX_IDENT_LENGTH + 1];
     int i = 0;
@@ -1021,7 +998,7 @@ int getSymbolList(symbol *symList) {
 
 
 
-// print the appropriate code to the code file
+// Print the code to output
 void emit( int op, int r, int l, int m )
 {
     code[codeLine].op = op;
@@ -1033,7 +1010,7 @@ void emit( int op, int r, int l, int m )
     
     codeLine++;
     
-}// end function emit
+}
 
 
 // prints the generated code to the code.txt output file
