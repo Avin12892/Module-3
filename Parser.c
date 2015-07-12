@@ -65,37 +65,29 @@ typedef enum {
 } token_type;
 
 
-
-typedef enum
-{
+// Op codes
+typedef enum {
     LIT = 1, RTN, LOD, STO, CAL, INC, JMP, JPC, SIO1, SIO2, SIO3,
     NEG, ADD, SUB, MUL, DIV, ODD, MOD, EQL, NEQ, LSS, LEQ, GTR, GEQ
 } op_code;
 
 
-// kind of identifier
-typedef enum
-{
+// Symbol types
+typedef enum {
     constant = 1,
     variable,
     procedure
 } symbol_kind;
 
 
-// a node that represents a single token from the code
-typedef struct node
-{
-    // a variable, number or symbol in the code
+// Node to represent a token
+typedef struct node {
     int token;
-    
-    // a pointer to the next word in the code
     struct node *next;
-    
 } node;
 
-// represents a line of code
-typedef struct
-{
+// Struct to hold an instruction
+typedef struct {
     int op;
     int r;
     int l;
@@ -105,10 +97,10 @@ typedef struct
 
 // Global variables
 int currentToken;
-int curReg;
+int currentRegister;
 symbol symbolList[50];
 symbol symbolTable[100];
-int stIndex;
+int symbolTableIndex;
 int codeLine;
 instruction code[CODE_BUFFER];
 int printSuccess;
@@ -117,48 +109,42 @@ int level;
 
 // Functions
 //
-void program( node *currentNode);
-void block( node *currentNode );
-int const_declaration( node *currentNode );
-int  var_declaration( node *currentNode );
-int procedure_declaration( node *currentNode );
-void statement( node *currentNode );
-void condition( node *currentNode );
-int  rel_op( );
-void expression( node *currentNode );
-void term( node *currentNode );
-void factor( node *currentNode );
-void getNextToken( node *currentNode );
-void error( int errorVal );
-void addtoSymbolTable( int symbolKind, int symListIndex );
-int findToken( int token );
-
-
-node* newNode( int data );
-node* insertNode( node *head, node *tail, int token );
+// Functions for processing
+void program(node* currentNode);
+void block(node* currentNode);
+int const_declaration(node* currentNode);
+int  var_declaration(node* currentNode);
+int procedure_declaration(node* currentNode);
+void statement(node* currentNode);
+void condition(node* currentNode);
+int  rel_op();
+void expression(node* currentNode);
+void checkCode(node* currentNode);
+void factor(node* currentNode);
+void getNextToken(node* currentNode);
+void error(int errorVal);
+void addtoSymbolTable(int symbolKind, int symListIndex);
+int findToken(int token);
+//
+// Helper functions
+node* newNode(int data);
+node* insertNode(node* head, node* tail, int token);
 node* getLexemeList();
-
-int getSymbolList( symbol *st );
-
-void destroyNodes( node *headNode );
-
-void emit( int op, int r, int l, int m );
-
+int getSymbolList(symbol* st);
+void destroyNodes(node* headNode);
+void emit(int op, int r, int l, int m);
 void printCode();
-
-void printNodes( node **head );
+void printNodes(node** head);
 
 
 int main(int argc, char **argv) {
     
     
-    int stSize;
-    
-    curReg = -1;
+    currentRegister = -1;
     codeLine = 0;
     printSuccess = 0;
     level = -1;
-    stIndex = 0;
+    symbolTableIndex = 0;
     
     
     // if Compile Driver passes an argument, then print to screen the success result
@@ -167,18 +153,16 @@ int main(int argc, char **argv) {
     }
     
     
-    // gets the lexeme list into the global variable
-    node *currentNode, **head;
+    // Retrieve the lexemelist and store it
+    node* currentNode;
     currentNode = getLexemeList();
     
+    // Retrieve the symbol table and store it
+    int symbolTableSize = getSymbolList( symbolList );
     
-    // put the symbol table into global variable symbol table
-    stSize = getSymbolList( symbolList );
     
-    
-    // call program
+    // Begin processing
     program( currentNode );
-    
     
     printCode();
     
@@ -262,7 +246,7 @@ void block( node *currentNode )
      symbolTable[i].kind, symbolTable[i].val, symbolTable[i].level, symbolTable[i].addr);
      */
     
-    stIndex = stIndex - (numVars + numProcs + numConsts);
+    symbolTableIndex = symbolTableIndex - (numVars + numProcs + numConsts);
     emit( RTN, 0, 0, 0 );
     
     level--;
@@ -315,7 +299,7 @@ int const_declaration( node *currentNode )
         getNextToken( currentNode );
         constIndex = currentToken;
         constValue = atoi( symbolList[constIndex].name );
-        symbolTable[stIndex].val = constValue;
+        symbolTable[symbolTableIndex].val = constValue;
         
         getNextToken( currentNode );
         
@@ -357,7 +341,7 @@ int var_declaration( node *currentNode )
         
         
         addtoSymbolTable( variable, symListIndex );
-        symbolTable[stIndex].addr = 4 + varCount; // add 4 to account for other
+        symbolTable[symbolTableIndex].addr = 4 + varCount; // add 4 to account for other
         // items in activation record  (space from base pointer)
         
         
@@ -400,8 +384,8 @@ int procedure_declaration( node *currentNode )
         // appropriate symbol table values
         symListIndex = currentToken;
         addtoSymbolTable( procedure, symListIndex );
-        symbolTable[stIndex].level = level;
-        symbolTable[stIndex].addr = codeLine;
+        symbolTable[symbolTableIndex].level = level;
+        symbolTable[symbolTableIndex].addr = codeLine;
         
         //printf("Procedure %s is at line %d\n", symbolTable[stIndex].name, symbolTable[stIndex].addr);
         
@@ -463,8 +447,8 @@ void statement( node *currentNode )
         
         expression( currentNode );
         
-        emit( STO, curReg, level - symbolTable[index].level, symbolTable[index].addr );    // STO = 4
-        curReg--;
+        emit( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // STO = 4
+        currentRegister--;
         
     } // end ident if
     
@@ -527,8 +511,8 @@ void statement( node *currentNode )
         getNextToken( currentNode );
         
         ctemp = codeLine;
-        emit( JPC, curReg, 0, 0 );    // JPC
-        curReg--;
+        emit( JPC, currentRegister, 0, 0 );    // JPC
+        currentRegister--;
         
         statement( currentNode );
         
@@ -562,7 +546,7 @@ void statement( node *currentNode )
         
         cx2 = codeLine;
         
-        emit( JPC, curReg, 0, 0 );    // JPC
+        emit( JPC, currentRegister, 0, 0 );    // JPC
         
         if ( currentToken != dosym )
             error(12);          // then expected
@@ -598,10 +582,10 @@ void statement( node *currentNode )
         }
         
         // read in user input and store it in variable
-        curReg++;
-        emit( SIO2, curReg, 0, 2 );   // SIO R 0 2 - read
-        emit( STO, curReg, level - symbolTable[index].level, symbolTable[index].addr );    // STO
-        curReg--;
+        currentRegister++;
+        emit( SIO2, currentRegister, 0, 2 );   // SIO R 0 2 - read
+        emit( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // STO
+        currentRegister--;
         
         getNextToken( currentNode );
         
@@ -627,10 +611,10 @@ void statement( node *currentNode )
         }
         
         // write variable to screen
-        curReg++;
-        emit( LOD, curReg, level - symbolTable[index].level, symbolTable[index].addr );    // LOD
-        emit( SIO1, curReg, 0, 1 );    // SIO R 0 1 - print
-        curReg--;
+        currentRegister++;
+        emit( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // LOD
+        emit( SIO1, currentRegister, 0, 1 );    // SIO R 0 1 - print
+        currentRegister--;
         
         getNextToken( currentNode );
         
@@ -655,7 +639,7 @@ void condition( node *currentNode )
         
         expression( currentNode );
         
-        emit( ODD, curReg, 0, 0 );   // ODD
+        emit( ODD, currentRegister, 0, 0 );   // ODD
         
     }
     
@@ -674,8 +658,8 @@ void condition( node *currentNode )
         
         expression( currentNode );
         
-        emit( relOpCode, curReg-1, curReg-1, curReg );  // EQL thru GEQ
-        curReg--;
+        emit( relOpCode, currentRegister-1, currentRegister-1, currentRegister );  // EQL thru GEQ
+        currentRegister--;
     }
 }// end function condition
 
@@ -722,13 +706,13 @@ void expression( node *currentNode )
         addop = currentToken;
         
         getNextToken( currentNode );
-        term ( currentNode );
+        checkCode ( currentNode );
         
-        emit( NEG, curReg, curReg, 0 );  // 12
+        emit( NEG, currentRegister, currentRegister, 0 );  // 12
     }
     else
     {
-        term ( currentNode );
+        checkCode ( currentNode );
     }
     // keep looping as long as there is another plus or minus symbol
     while ( currentToken == plussym || currentToken == minussym )
@@ -736,27 +720,26 @@ void expression( node *currentNode )
         addop = currentToken;
         
         getNextToken( currentNode );
-        term( currentNode );
+        checkCode( currentNode );
         
         if ( addop == plussym )
         {
-            emit ( ADD, curReg-1, curReg-1, curReg );    // ADD = 13
-            curReg--;
+            emit ( ADD, currentRegister-1, currentRegister-1, currentRegister );    // ADD = 13
+            currentRegister--;
         }
         if ( addop == minussym )
         {
-            emit ( SUB, curReg-1, curReg-1, curReg );    // SUB = 14
-            curReg--;
+            emit ( SUB, currentRegister-1, currentRegister-1, currentRegister );    // SUB = 14
+            currentRegister--;
         }
     }
     
-}// end function expression
+}
 
 
-// checks to make sure this block of code fits the definition for the term
-// as defined by the EBNF
-void term( node *currentNode )
-{
+// Check to see that the code follows the EBNF definitions
+void checkCode(node *currentNode) {
+    
     int mulOp;
     
     factor( currentNode );
@@ -771,13 +754,13 @@ void term( node *currentNode )
         
         if ( mulOp == multsym )     // Multiplication
         {
-            emit( MUL, curReg-1, curReg-1, curReg ); // MUL = 15
-            curReg--;
+            emit( MUL, currentRegister-1, currentRegister-1, currentRegister ); // MUL = 15
+            currentRegister--;
         }
         if ( mulOp == slashsym )    // Division
         {
-            emit( DIV, curReg-1, curReg-1, curReg ); // DIV = 16
-            curReg--;
+            emit( DIV, currentRegister-1, currentRegister-1, currentRegister ); // DIV = 16
+            currentRegister--;
         }
     }
 }// end function term
@@ -797,15 +780,15 @@ void factor( node *currentNode )
         i = currentToken;
         index = findToken(i);
         
-        curReg++;
+        currentRegister++;
         
         if ( symbolTable[index].kind == variable )
         {
-            emit( LOD, curReg, level - symbolTable[index].level, symbolTable[index].addr );    // LOD = 3
+            emit( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // LOD = 3
         }
         else if ( symbolTable[index].kind == constant )
         {
-            emit( LIT, curReg, 0, symbolTable[index].val );     // LIT = 1
+            emit( LIT, currentRegister, 0, symbolTable[index].val );     // LIT = 1
         }
         else
         {
@@ -822,8 +805,8 @@ void factor( node *currentNode )
         //index = findToken(i);
         
         value = atoi( symbolList[i].name );
-        curReg++;
-        emit( LIT, curReg, 0, value );                   // LIT = 1
+        currentRegister++;
+        emit( LIT, currentRegister, 0, value );                   // LIT = 1
         
         getNextToken( currentNode );
     }
@@ -987,25 +970,22 @@ node *insertNode( node *head, node *tail, int token )
         return tail->next;
     }
     
-}// end function insertNode
+}
 
 
-
-// creates a new node at the end of the linked list
-node *newNode( int data )
-{
-    node *ptr = malloc(sizeof(node));
+node *newNode(int data) {
     
-    ptr->token = data;
-    ptr->next = NULL;
+    node *pointer = malloc(sizeof(node));
     
-    return ptr;
+    pointer->token = data;
+    pointer->next = NULL;
     
-}// end function createNode
+    
+    return pointer;
+}
 
 
-// puts the symbol table into the symbol table array, and returns the length
-// of the symbol table
+// Retrieve the symbol table and store it in an array, returns the length
 int getSymbolList(symbol *symList) {
     
     char buffer[MAX_IDENT_LENGTH + 1];
@@ -1076,13 +1056,13 @@ void printCode()
 // adds the symbol from the symbol table list (from Scanner) to the symbol table
 void addtoSymbolTable( int symbolKind, int symListIndex ) {
     
-    stIndex++;
+    symbolTableIndex++;
     
     // copy name from symbolList to symbolTable
-    strcpy( symbolTable[stIndex].name, symbolList[symListIndex].name );
+    strcpy( symbolTable[symbolTableIndex].name, symbolList[symListIndex].name );
     
-    symbolTable[stIndex].level = level;
-    symbolTable[stIndex].kind = symbolKind;
+    symbolTable[symbolTableIndex].level = level;
+    symbolTable[symbolTableIndex].kind = symbolKind;
     
 }
 
@@ -1092,7 +1072,7 @@ int findToken( int token ) {
     
     int location;
     
-    for ( location = stIndex; location > 0; location-- )
+    for ( location = symbolTableIndex; location > 0; location-- )
         if ( strcmp( symbolTable[location].name, symbolList[token].name ) == 0 )
             return location;
     
