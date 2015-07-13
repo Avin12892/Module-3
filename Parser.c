@@ -1,9 +1,10 @@
+//  Alex Chatham
+//  Jesse Spencer
 //
-//  parser.c
-//  
+//  Parser.c
+//  --
 //
-//  
-//
+//  --
 
 
 #include <stdio.h>
@@ -192,19 +193,19 @@ int main(int argc, char* argv[]) {
 
 void program(node* currentNode)
 {
-    // get the first token
-    nextLexeme( currentNode );
+    
+    nextLexeme(currentNode);
     
     block( currentNode );
     
-    // if the program does not end with a period, error
-    if (currentToken != periodsym )
-    {
+    // Error for missing period
+    if (currentToken != periodsym ) {
         error(6);
     }
     else
     {
-        emit( SIO3, 0, 0, 3 );  // SIO R 0 3 - halt program
+        emit( SIO3, 0, 0, 3 );
+        
         if ( printSuccess )
             printf("No errors, program is syntactically correct\n" );
     }

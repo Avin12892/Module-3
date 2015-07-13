@@ -1,3 +1,6 @@
+//  Alex Chatham
+//  Jesse Spencer
+//
 //  Lexical Analyzer
 //  --
 //  This is a Lexical Analyzer/Scaner for the PL/0 programming language.
@@ -6,13 +9,8 @@
 //  the lexeme table,
 //  and the list of lexemes.
 //  --
-//  Created by:
-//  Alex Chatham
-//  Jesse Spencer
 //  
 //  
-
-
 
 
 #include <stdio.h>
@@ -20,31 +18,30 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+
 #define MAX_SYMBOL_TABLE_SIZE 100
 #define MAX_IDENTIFIER_LENGTH 11
 #define MAX_NUMBER_LENGTH 5
+#define NAME_SIZE 12
 
-// a struct to store the symbol information
-typedef struct
-{
+#define INPUT_NAME "input.txt"
+#define OUTPUT_NAME "lexemetable.txt"
+
+// Struct to hold symbols
+typedef struct {
     int kind;           // const = 1, var = 2, procedure = 3
-    char name[12];      // reg
+    char name[NAME_SIZE];   // reg
     int val;            // number (ASCII value)
     int level;          // L level
     int addr;           // M level
 } symbol;
 
-
-// a node that represents a single word or symbol in the program code
-typedef struct node
-{
-    // a variable, number or symbol in the code
-    char *word;
-    
-    // a pointer to the next word in the code
-    struct node *next;
-    
+// Node to contain a symbol or word
+typedef struct node {
+    char* word;
+    struct node* next;
 } node;
+
 
 //Identify all lexical conventions
 typedef enum {
@@ -84,158 +81,153 @@ typedef enum {
 } token_type;
 
 
-// function declarations
-node *BeginsWithLetter( char firstLetter, FILE *inputFile, node* tail,
-                       FILE *outputFile );
-node *createNode();
-node *BeginsWithNumber( char firstDigit, FILE *inputFile, node* tail,
-                       FILE *outputFile );
-node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
-                       FILE *outputFile );
-void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
-                int *numSymbs );
-
-int putInSymbolTable( symbol *symbol_table, char *text, int *numSymbols );
+// Functions
+node* createNode();
+node* isLetter(char firstLetter, FILE* input, node* tail, FILE* output);
+node* isNumber(char firstDigit, FILE* input, node* tail, FILE* output);
+node* isSymbol(char firstSymbol, FILE* input, node* tail, FILE* output);
+void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol* table, int* numberSymbol);
+int putInSymbolTable(symbol* table, char* text, int* numberSymbol);
 
 
-// begin main
-int main(void)
-{
+int main() {
     
-    //char currentLine[100];
-    //strcpy( currentLine, "" );
-    int c, buffer;
+    int currentChar;
+    int buffer;
     char letter;
     
-    int i = 0;
-    int numSymbols = 0;
+    int numberOfSymbols = 0;
     
-    // begin a linked list to store each word or symbol in a node
+    // Create linked list
     node *head, *tail;
     head = tail = createNode();
     
     
-    // declare and initialize the symbol table
-    symbol symbol_table[MAX_SYMBOL_TABLE_SIZE];
-    for ( i = 0; i < MAX_SYMBOL_TABLE_SIZE; i++ )
-    {
-        symbol_table[i].kind = 0;
-        strcpy( symbol_table[i].name,  "");
-        symbol_table[i].val = 0;
-        symbol_table[i].level = 0;
-        symbol_table[i].addr = 0;
+    
+    // Symbol table
+    symbol table[MAX_SYMBOL_TABLE_SIZE];
+    
+    for (int i = 0; i < MAX_SYMBOL_TABLE_SIZE; i++) {
+        
+        table[i].kind = 0;
+        strcpy(table[i].name,  "");
+        table[i].val = 0;
+        table[i].level = 0;
+        table[i].addr = 0;
+    
     }
     
-    // create a pointer for the input file
-    FILE *ifp = fopen("input.txt", "rb");
+    // Open input file
+    FILE* input = fopen(INPUT_NAME, "rb");
     
-    // exit program if file not found
-    if (ifp == NULL) {
-        printf("\"input.txt\" file not found\n");
+    if ( ! input) {
+        printf("\nScanner unable to open input file.\n");
         exit(1);
     }
     
-    // create and begin writing to the main output file
-    FILE *ofp = fopen("lexout.txt", "w+");
+    // Create output file
+    FILE *output = fopen(OUTPUT_NAME, "w+");
     
-    fprintf(ofp, "Source Program:\n");
+    fprintf(output, "Source Program:\n");
     
-    // get the first character from the input file
-    c = fgetc(ifp);
+    // Prime with the first character from input
+    currentChar = fgetc(input);
     
     
-    // Read the first character of each new word.  Creates a node for each
-    // symbol, word, or number in the code (excluding comments).  Prints out the
-    // code to output, removing comments
-    while( c  != EOF ) {
+    // Processing of each word, removing comments
+    while (currentChar  != EOF) {
         
         // if the first character is a letter, handle as a letter
-        if ( isalpha ( c ) )
-        {
-            letter = c;
-            tail = BeginsWithLetter(c, ifp, tail, ofp );
-            c = fgetc(ifp);
+        if (isalpha(currentChar)) {
+            
+            letter = currentChar;
+            tail = isLetter(currentChar, input, tail, output);
+            currentChar = fgetc(input);
+        
         }
         
-        // handle differently if the first character is a number
-        else if ( isdigit( c ) )
-        {
-            tail = BeginsWithNumber(c, ifp, tail, ofp );
-            c = fgetc(ifp);
+        // Is a number
+        else if (isdigit(currentChar)) {
+            
+            tail = isNumber(currentChar, input, tail, output );
+            currentChar = fgetc(input);
+        
         }
         
-        // and if the first character is a symbol
-        else if ( ispunct( c ) )
-        {
-            letter = c;
-            tail = BeginsWithSymbol(c, ifp, tail, ofp );
-            c = fgetc(ifp);
+        // Is a symbol
+        else if (ispunct(currentChar)) {
+            
+            letter = currentChar;
+            tail = isSymbol(currentChar, input, tail, output);
+            currentChar = fgetc(input);
             
         }
         
-        // if it is none of these, print it out to maintain white space
-        else
-        {
-            fprintf( ofp, "%c", c );
-            c = fgetc(ifp);
+        // White space
+        else {
+            fprintf(output, "%c", currentChar);
+            currentChar = fgetc(input);
         }
-    }// end while loop
     
-    // close the input file
-    fclose (ifp);
-    
-    // create the output files for the lexeme list and the symbol table
-    FILE *lexemeFP = fopen("lexemelist.txt", "w+");
-    FILE *symbTabFP = fopen("symboltable.txt", "w+");
-    
-    
-    //  print the lexime list to the output file and the lexime output file
-    // go through each "word" in the linked list code
-    fprintf(ofp, "\n\nLexeme Table:\n");
-    fprintf(ofp, "lexeme\t\ttoken type\n");
-    for (; head->next != NULL; head = head->next )
-    {
-        fprintf(ofp, "%s\t\t", head->word);
-        findLexeme(ofp, head->word, lexemeFP, symbol_table, &numSymbols);
     }
     
-    // close the lexeme file
+    fclose (input);
+    
+    // Files for output
+    FILE* lexemeFP = fopen("lexemelist.txt", "w+");
+    FILE* symbTabFP = fopen("symboltable.txt", "w+");
+    
+    
+    fprintf(output, "\n\nLexeme Table:\n");
+    fprintf(output, "lexeme\t\ttoken type\n");
+    for (; head->next != NULL; head = head->next ) {
+        fprintf(output, "%s\t\t", head->word);
+        findLexeme(output, head->word, lexemeFP, table, &numberOfSymbols);
+    }
+    
+
     fclose(lexemeFP);
     
     
-    fprintf(ofp, "\nSymbol Table:\n");
-    fprintf(ofp, "index\t\tsymbol\n");
+    fprintf(output, "\nSymbol Table:\n");
+    fprintf(output, "index\t\tsymbol\n");
+ 
     
-    // print out the symbol table to the output file and the symbol output file
-    for (i = 0; i < numSymbols; i++ )
-    {
-        fprintf(ofp, "%d\t\t%s \n", i, symbol_table[i].name);
-        fprintf(symbTabFP, "%s ", symbol_table[i].name);
+    for (int i = 0; i < numberOfSymbols; i++ ) {
+        
+        fprintf(output, "%d\t\t%s \n", i, table[i].name);
+        fprintf(symbTabFP, "%s ", table[i].name);
     }
-    // close the symbol file
+    
+    
     fclose( symbTabFP);
     
-    // reopen the lexeme list file to read for printing to output file
+    
     FILE *newIFP = fopen("lexemelist.txt", "rb");
     
-    fprintf(ofp, "\nLexeme List:\n");
+    fprintf(output, "\nLexeme List:\n");
     while (fscanf(newIFP, "%d", &buffer) != EOF)
     {
-        fprintf(ofp, "%d ", buffer);
+        fprintf(output, "%d ", buffer);
     }
     
-    // close all remaining files
-    fclose(newIFP);
-    fclose (ofp);
     
-}// end function main
+    fclose(newIFP);
+    fclose (output);
+}
 
+// Make a new node
+node* createNode() {
+    
+    node* pointer = malloc(sizeof(node));
+    
+    pointer->next = NULL;
+    
+    return pointer;
+}
 
-
-// creates a node if the first character is a letter, so it is either a variable
-// or a reserved word.
-node *BeginsWithLetter( char firstLetter, FILE *inputFile, node *tail,
-                       FILE *outputFile )
+// If the character is a letter, procede accordingly
+node* isLetter(char firstLetter, FILE* input, node* tail, FILE* output)
 {
     int wordLen = 11;
     int nextLetter;
@@ -249,7 +241,7 @@ node *BeginsWithLetter( char firstLetter, FILE *inputFile, node *tail,
     word[0] = firstLetter;
     
     // get the next character
-    nextLetter = fgetc(inputFile);
+    nextLetter = fgetc(input);
     
     // as long as the next character is a letter or number, keep adding it to
     // the word
@@ -263,7 +255,7 @@ node *BeginsWithLetter( char firstLetter, FILE *inputFile, node *tail,
         }
         word[letterPos] = nextLetter;
         letterPos++;
-        nextLetter = fgetc(inputFile);
+        nextLetter = fgetc(input);
     }// ends when the next character is not a letter or number
     
     // copy the word to the linkedlist node
@@ -276,20 +268,18 @@ node *BeginsWithLetter( char firstLetter, FILE *inputFile, node *tail,
     
     // go back in the file so the character can be read again in the main program
     if (nextLetter != EOF )
-        fseek(inputFile, -1, SEEK_CUR);
+        fseek(input, -1, SEEK_CUR);
     
     // print the word to the file
-    fprintf( outputFile, "%s", tail->word );
+    fprintf( output, "%s", tail->word );
     
     // return pointer to the newly created node
     return tail->next;
     
-}// end function BeginsWithLetter
+}
 
-
-// creates a node if the first character is a number
-node *BeginsWithNumber( char firstDigit, FILE *inputFile, node *tail,
-                       FILE *outputFile )
+// If the character is a number, procede accordingly
+node* isNumber(char firstDigit, FILE* input, node* tail, FILE* output)
 {
     int numDigits = 5;
     int digitPos = 1;
@@ -302,7 +292,7 @@ node *BeginsWithNumber( char firstDigit, FILE *inputFile, node *tail,
     word[0] = firstDigit;
     
     // get the next character from the file
-    nextDigit = fgetc(inputFile);
+    nextDigit = fgetc(input);
     
     // as long as the next character is a number, keep adding it to the string
     while( isdigit(nextDigit) )
@@ -316,7 +306,7 @@ node *BeginsWithNumber( char firstDigit, FILE *inputFile, node *tail,
         // add new digits to the string
         word[digitPos] = nextDigit;
         digitPos++;
-        nextDigit = fgetc(inputFile);
+        nextDigit = fgetc(input);
         
     }// end if nextDigit is not a digit
     
@@ -334,22 +324,20 @@ node *BeginsWithNumber( char firstDigit, FILE *inputFile, node *tail,
     
     // go back a character so the main file can read the non-digit character
     if ( nextDigit != EOF )
-        fseek(inputFile, -1, SEEK_CUR);
+        fseek(input, -1, SEEK_CUR);
     
     // free memory for the word
     free(word);
     
     // print number to output
-    fprintf( outputFile, "%s", tail->word );
+    fprintf( output, "%s", tail->word );
     
     return tail->next;
     
-}// end function BeginsWithNumber
+}
 
-
-// creates a node if the first character is a symbol
-node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
-                       FILE *outputFile )
+// If the charcter is a symbol, procede accordingly
+node* isSymbol(char firstSymbol, FILE* input, node* tail, FILE* output)
 {
     int maxNumSymbols = 2;
     
@@ -366,14 +354,14 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
         {
             char nextChar;
             
-            nextChar = fgetc(inputFile);
+            nextChar = fgetc(input);
             
             // if the string is /*, begin comments.  Remove all characters until
             // the close comments */ string is found. Do not output any
             // characters between comments.
             if ( nextChar == '*' )
             {
-                nextChar = fgetc(inputFile);
+                nextChar = fgetc(input);
                 // repeat until the / charcter is found, but only checks right
                 // after the * is found
                 do
@@ -387,9 +375,9 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
                             printf("Error 21. No end to comments. */ required. \n");
                             exit(1);
                         }
-                        nextChar = fgetc(inputFile);
+                        nextChar = fgetc(input);
                     }
-                    nextChar = fgetc(inputFile);
+                    nextChar = fgetc(input);
                 } while( nextChar != '/' );
                 
                 // dont add new node to the linked list
@@ -401,7 +389,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
             else
             {
                 if ( nextChar != EOF )
-                    fseek(inputFile, -1, SEEK_CUR);
+                    fseek(input, -1, SEEK_CUR);
             }
             break;
         }// end case for /
@@ -412,7 +400,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
             
             int digitPos = 1;
             
-            nextChar = fgetc(inputFile);
+            nextChar = fgetc(input);
             
             // if the next character is = or >, add to string
             if ( nextChar == '=' || nextChar == '>' )
@@ -422,7 +410,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
             else    // is only <, go back so character can be re-read
             {
                 if ( nextChar != EOF )
-                    fseek(inputFile, -1, SEEK_CUR);
+                    fseek(input, -1, SEEK_CUR);
                 
             }
             break;
@@ -434,7 +422,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
             
             int digitPos = 1;
             
-            nextChar = fgetc(inputFile);
+            nextChar = fgetc(input);
             
             // add = to string to make >=
             if ( nextChar == '=')
@@ -445,7 +433,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
                 // main file
             {
                 if ( nextChar != EOF )
-                    fseek(inputFile, -1, SEEK_CUR);
+                    fseek(input, -1, SEEK_CUR);
                 
             }
             break;
@@ -457,7 +445,7 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
             
             int digitPos = 1;
             
-            nextChar = fgetc(inputFile);
+            nextChar = fgetc(input);
             
             // if :=
             if ( nextChar == '=')
@@ -500,17 +488,14 @@ node *BeginsWithSymbol( char firstSymbol, FILE *inputFile, node* tail,
     free(symbol);
     
     // print symbol to output file
-    fprintf( outputFile, "%s", tail->word );
+    fprintf( output, "%s", tail->word );
     
     return tail->next;
     
-}// end function BeginsWithSymbol
+}
 
-
-// takes a string node and converts it to the appropriate token value
-// creates a symbol in the symbol table if needed
-void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
-                int *numSymbs )
+// Tokenizes a node
+void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol* table, int* numberSymbol)
 {
     int index;
     
@@ -528,68 +513,68 @@ void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
         // print the appropriate token value to the output file and the lexeme
         // list file for all reserved words
         if ( strcmp( text, "odd") == 0 ) {
-            fprintf (outFP, "%d\n", 8 );
-            fprintf (lexFP, "%d ", 8 );
+            fprintf (outputPointer, "%d\n", 8 );
+            fprintf (lexemelistPointer, "%d ", 8 );
         }
         else if ( strcmp( text, "begin") == 0 ) {
-            fprintf (outFP, "%d\n", 21 );
-            fprintf (lexFP, "%d ", 21 );
+            fprintf (outputPointer, "%d\n", 21 );
+            fprintf (lexemelistPointer, "%d ", 21 );
         }
         else if ( strcmp( text, "end") == 0 ) {
-            fprintf (outFP, "%d\n", 22 );
-            fprintf (lexFP, "%d ", 22 );
+            fprintf (outputPointer, "%d\n", 22 );
+            fprintf (lexemelistPointer, "%d ", 22 );
         }
         else if ( strcmp( text, "if") == 0 ) {
-            fprintf (outFP, "%d\n", 23 );
-            fprintf (lexFP, "%d ", 23 );
+            fprintf (outputPointer, "%d\n", 23 );
+            fprintf (lexemelistPointer, "%d ", 23 );
         }
         else if ( strcmp( text, "then") == 0 ) {
-            fprintf (outFP, "%d\n", 24 );
-            fprintf (lexFP, "%d ", 24 );
+            fprintf (outputPointer, "%d\n", 24 );
+            fprintf (lexemelistPointer, "%d ", 24 );
         }
         else if ( strcmp( text, "while") == 0 ) {
-            fprintf (outFP, "%d\n", 25 );
-            fprintf (lexFP, "%d ", 25 );
+            fprintf (outputPointer, "%d\n", 25 );
+            fprintf (lexemelistPointer, "%d ", 25 );
         }
         else if ( strcmp( text, "do") == 0 ) {
-            fprintf (outFP, "%d\n", 26 );
-            fprintf (lexFP, "%d ", 26 );
+            fprintf (outputPointer, "%d\n", 26 );
+            fprintf (lexemelistPointer, "%d ", 26 );
         }
         else if ( strcmp( text, "call") == 0 ) {
-            fprintf (outFP, "%d\n", 27 );
-            fprintf (lexFP, "%d ", 27 );
+            fprintf (outputPointer, "%d\n", 27 );
+            fprintf (lexemelistPointer, "%d ", 27 );
         }
         else if ( strcmp( text, "const") == 0 ) {
-            fprintf (outFP, "%d\n", 28 );
-            fprintf (lexFP, "%d ", 28 );
+            fprintf (outputPointer, "%d\n", 28 );
+            fprintf (lexemelistPointer, "%d ", 28 );
         }
         else if ( strcmp( text, "var") == 0 ) {
-            fprintf (outFP, "%d\n", 29 );
-            fprintf (lexFP, "%d ", 29 );
+            fprintf (outputPointer, "%d\n", 29 );
+            fprintf (lexemelistPointer, "%d ", 29 );
         }
         else if ( strcmp( text, "procedure") == 0 ) {
-            fprintf (outFP, "%d\n", 30 );
-            fprintf (lexFP, "%d ", 30 );
+            fprintf (outputPointer, "%d\n", 30 );
+            fprintf (lexemelistPointer, "%d ", 30 );
         }
         else if ( strcmp( text, "write") == 0 ) {
-            fprintf (outFP, "%d\n", 31 );
-            fprintf (lexFP, "%d ", 31 );
+            fprintf (outputPointer, "%d\n", 31 );
+            fprintf (lexemelistPointer, "%d ", 31 );
         }
         else if ( strcmp( text, "read") == 0 ) {
-            fprintf (outFP, "%d\n", 32 );
-            fprintf (lexFP, "%d ", 32 );
+            fprintf (outputPointer, "%d\n", 32 );
+            fprintf (lexemelistPointer, "%d ", 32 );
         }
         else if ( strcmp( text, "else") == 0 ) {
-            fprintf (outFP, "%d\n", 33 );
-            fprintf (lexFP, "%d ", 33 );
+            fprintf (outputPointer, "%d\n", 33 );
+            fprintf (lexemelistPointer, "%d ", 33 );
         }
         
         else    // if it is not a reserved word, it is an identifier
         {
             // print the appropriate token "2" and add it to the symbol table
-            fprintf (outFP, "2\n" );
-            index = putInSymbolTable( table, text, numSymbs );
-            fprintf (lexFP, "2 %d ", index );
+            fprintf (outputPointer, "2\n" );
+            index = putInSymbolTable( table, text, numberSymbol );
+            fprintf (lexemelistPointer, "2 %d ", index );
         }
     }// end if first character is letter
     
@@ -603,9 +588,9 @@ void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
             exit(1);
         }
         // print the appropriate token "3" and add it to the symbol table
-        fprintf(outFP, "3\n");
-        index = putInSymbolTable( table, text, numSymbs );
-        fprintf (lexFP, "3 %d ", index );
+        fprintf(outputPointer, "3\n");
+        index = putInSymbolTable( table, text, numberSymbol );
+        fprintf (lexemelistPointer, "3 %d ", index );
     }// end if first character is number
     
     // if the first character is punctuation.  Already tested for invalid
@@ -616,40 +601,40 @@ void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
         switch ( text[0] )
         {
             case '+' :
-                fprintf(outFP, "%d\n", 4);
-                fprintf (lexFP, "%d ", 4);
+                fprintf(outputPointer, "%d\n", 4);
+                fprintf (lexemelistPointer, "%d ", 4);
                 break;
             case '-' :
-                fprintf(outFP, "%d\n", 5);
-                fprintf (lexFP, "%d ", 5);
+                fprintf(outputPointer, "%d\n", 5);
+                fprintf (lexemelistPointer, "%d ", 5);
                 break;
             case '*' :
-                fprintf(outFP, "%d\n", 6);
-                fprintf (lexFP, "%d ", 6);
+                fprintf(outputPointer, "%d\n", 6);
+                fprintf (lexemelistPointer, "%d ", 6);
                 break;
             case '/' :
-                fprintf(outFP, "%d\n", 7);
-                fprintf (lexFP, "%d ", 7);
+                fprintf(outputPointer, "%d\n", 7);
+                fprintf (lexemelistPointer, "%d ", 7);
                 break;
             case '(' :
-                fprintf(outFP, "%d\n", 15);
-                fprintf (lexFP, "%d ", 15);
+                fprintf(outputPointer, "%d\n", 15);
+                fprintf (lexemelistPointer, "%d ", 15);
                 break;
             case ')' :
-                fprintf(outFP, "%d\n", 16);
-                fprintf (lexFP, "%d ", 16);
+                fprintf(outputPointer, "%d\n", 16);
+                fprintf (lexemelistPointer, "%d ", 16);
                 break;
             case '=' :
-                fprintf(outFP, "%d\n", 9);
-                fprintf (lexFP, "%d ", 9);
+                fprintf(outputPointer, "%d\n", 9);
+                fprintf (lexemelistPointer, "%d ", 9);
                 break;
             case ',' :
-                fprintf(outFP, "%d\n", 17);
-                fprintf (lexFP, "%d ", 17);
+                fprintf(outputPointer, "%d\n", 17);
+                fprintf (lexemelistPointer, "%d ", 17);
                 break;
             case '.' :
-                fprintf(outFP, "%d\n", 19);
-                fprintf (lexFP, "%d ", 19);
+                fprintf(outputPointer, "%d\n", 19);
+                fprintf (lexemelistPointer, "%d ", 19);
                 break;
             case '<' :     // <, <>, <=
                 // check for <> and <=
@@ -657,19 +642,19 @@ void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
                 {
                     if ( strcmp(text, "<>") == 0 )
                     {
-                        fprintf(outFP, "%d\n", 10);
-                        fprintf (lexFP, "%d ", 10);
+                        fprintf(outputPointer, "%d\n", 10);
+                        fprintf (lexemelistPointer, "%d ", 10);
                     }
                     else if ( strcmp(text, "<=") == 0 )
                     {
-                        fprintf(outFP, "%d\n", 12);
-                        fprintf (lexFP, "%d ", 12);
+                        fprintf(outputPointer, "%d\n", 12);
+                        fprintf (lexemelistPointer, "%d ", 12);
                     }
                 }
                 else
                 {
-                    fprintf(outFP, "%d\n", 11);
-                    fprintf (lexFP, "%d ", 11);
+                    fprintf(outputPointer, "%d\n", 11);
+                    fprintf (lexemelistPointer, "%d ", 11);
                 }
                 break;
             case '>' :      // > and >=
@@ -677,65 +662,50 @@ void findLexeme(FILE *outFP, char *text, FILE *lexFP, symbol *table,
                 {
                     if ( strcmp(text, ">=") == 0 )
                     {
-                        fprintf(outFP, "%d\n", 14);
-                        fprintf (lexFP, "%d ", 14);
+                        fprintf(outputPointer, "%d\n", 14);
+                        fprintf (lexemelistPointer, "%d ", 14);
                     }
                 }
                 else
                 {
-                    fprintf(outFP, "%d\n", 13);
-                    fprintf (lexFP, "%d ", 13);
+                    fprintf(outputPointer, "%d\n", 13);
+                    fprintf (lexemelistPointer, "%d ", 13);
                 }
                 break;
             case ';' :
-                fprintf(outFP, "%d\n", 18);
-                fprintf (lexFP, "%d ", 18);
+                fprintf(outputPointer, "%d\n", 18);
+                fprintf (lexemelistPointer, "%d ", 18);
                 break;
             case ':' :
-                fprintf(outFP, "%d\n", 20);
-                fprintf (lexFP, "%d ", 20);
+                fprintf(outputPointer, "%d\n", 20);
+                fprintf (lexemelistPointer, "%d ", 20);
                 break;
                 
-        }// end switch statement
+        }
         
-    }// end if first character is symbol
-}// end function FindLexeme
+    }
+}
 
-
-// puts the text into the symbol table.  Checks if it is already there.
-int putInSymbolTable( symbol *symbol_table, char *text, int *numSymbols )
-{
-    int i;
+// Place text into table
+int putInSymbolTable(symbol* table, char* text, int* numberSymbol) {
     
     // go through each symbol in symbol table to see if string is already there
-    for ( i = 0; i < *numSymbols; i++ )
-    {
+    
+    for (int i = 0; i < *numberSymbol; i++) {
         // if string in symbol table, return the corresponding index
-        if ( strcmp( symbol_table[i].name, text ) == 0 )
+        if ( strcmp( table[i].name, text ) == 0 )
         {
             return i;
         }
     }
     
     // if string is not in symbol table, add it to the last index
-    strcpy( symbol_table[*numSymbols].name, text );
+    strcpy( table[*numberSymbol].name, text );
     
     // increment the last index
-    *numSymbols = *numSymbols + 1;
+    *numberSymbol = *numberSymbol + 1;
     
     // return the index for the newly added string
-    return ( *numSymbols - 1 );
+    return ( *numberSymbol - 1 );
     
-}// end function putInSymbolTable
-
-
-// creates a new node.  Will store strings for each piece of code representing
-// identifiers, numbers, and symbols, but for now just creating the node.
-node *createNode()
-{
-    node *ptr = malloc(sizeof(node));
-    
-    ptr->next = NULL;
-    
-    return ptr;
-}// end function createNode
+}

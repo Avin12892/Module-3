@@ -1,9 +1,10 @@
-//
+//  Alex Chatham
+//  Jesse Spencer
 //  
-//  
+//  CompileDriver.c
+//  --
 //
-//
-//
+//  --
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -141,7 +142,7 @@ void printLexemeList() {
     
     printf("\n\nPrinting out the symbol table:\n");
     
-    if (symbolTablePointer == NULL) {
+    if ( ! symbolTablePointer) {
         printf("\Error finding symbol table file output\n\n");
         exit(1);
     }
@@ -163,7 +164,7 @@ void printAssemblyCode() {
     FILE* parserPointer = fopen("mcode.txt", "r");
     
     
-    if (parserPointer == NULL) {
+    if ( ! parserPointer) {
         printf("\n\nError finding Parser output\n");
         exit(1);
     }
@@ -186,8 +187,8 @@ void printVMExecutionTrace() {
     
     printf("\n\nPrinting out Virtual Machine output:\n\n");
     
-    // exit program if file not found
-    if (VMPointer == NULL) {
+    
+    if (! VMPointer) {
         printf("\nError finding VM output\n");
         exit(1);
     }

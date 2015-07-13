@@ -1,66 +1,57 @@
-//
 //  Alexander Chatham
 //  Jesse Spencer
-//  
+//
+//  PMachine.c
+//  --
 //  This is a P-Machine virtual machine
 //  The P- machine is a stack machine with two memory stores:
 //  stack, which is organized as a stack and contains the data to be used by the PM/0 CPU, and code, 
 //  which is organized as a list and contains the instructions for the VM. The PM/0 CPU has four registers. 
 //  The registers are base pointer bp, stack pointer sp, program counter pc and instruction register ir.
-//
+//  --
 //  NOTES:
 //  - Input file name is hardcoded, must be named "mcode.txt" and be in the same directory
 //  - Output is printed to a file named "stacktrace.txt" and is created in the working directory
 
 
 #include <stdio.h>
-
-
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
 
 #define MAX_STACK_HEIGHT 2000
 #define MAX_CODE_LENGTH 500
 #define MAX_LEXI_LEVELS 3
 
 
-typedef struct
-{
+typedef struct {
     int op; // opcode
     int r;  // reg
     int l;  // L
     int m;  // M
 } instruction;
 
-// function definitions
-void printCodeToFile( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength );
 
-instruction fetch( int programCounter, int code[][MAX_CODE_LENGTH] );
-
-char* getOpCode( int opCode );
-
-int base( int l, int base, int *stack );
+// Functions
+void printCodeToFile(FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength);
+instruction fetch(int programCounter, int code[][MAX_CODE_LENGTH]);
+char* getOpCode(int opCode);
+int base(int l, int base, int* stack);
 
 
-
-// begin main
-int main(void)
-{
+int main() {
     
     int buffer, counter = 0, codeLen = 0;;
     int i, j;
     int line = 0;
     
-    // declare and initialize the stack
+    // Stack
     int stack[MAX_STACK_HEIGHT];
-    for ( i = 0; i < MAX_STACK_HEIGHT; i++ )
-    {
+    for ( i = 0; i < MAX_STACK_HEIGHT; i++ ) {
         stack[i] = 0;
     }
     
-    
-    // declare and reset the array that stores the program code
+    // Program code array
     int code[4][MAX_CODE_LENGTH];
     
     for ( i = 0; i < MAX_CODE_LENGTH; i++ )
@@ -72,7 +63,7 @@ int main(void)
     }
     
     
-    // declare and initialize the CPU register variables
+    // CPU registers
     int stackPtr = 0;
     int basePtr = 1;
     int PC = 0;
@@ -83,70 +74,58 @@ int main(void)
     ir.m = 0;
     
     int reg[16];
-    for ( i = 0; i < 16; i++ )
-    {
+    for (i = 0; i < 16; i++) {
         reg[i] = 0;
     }
-    // keeps track of new activation records and their lengths
+    
+    
     int ActRecLen[20];
     int curActRec = 0;
     
-    int halt = 0;   // set halt flag to 0
+    
+    // Set halt
+    int halt = 0;
     
     
-    FILE *ifp = fopen("mcode.txt", "rb");
+    FILE *inputPointer = fopen("mcode.txt", "rb");
     
-    // exit program if file not found
-    if (ifp == NULL) {
+    if ( ! inputPointer) {
         printf("Code for virtual machine not found\n");
         exit(1);
     }
     
     // Read the file and put it into the code memory
-    while (fscanf(ifp, "%d", &buffer) != EOF)
+    while (fscanf(inputPointer, "%d", &buffer) != EOF)
     {
         code[counter % 4][counter/4] = buffer;
         
         counter++;
         
-    }// end while loop
+    }
     
-    // keep track of the # of lines of code
     codeLen = counter / 4;
     
-    fclose (ifp);
+    fclose (inputPointer);
     
-    /*      used for debugging:
-     // printout code to make sure reads in correctly.
-     for ( i = 0; i < codeLen; i++)
-     {
-     for ( j = 0; j < 4; j++ )
-     printf("%d ", code[j][i]);
-     printf("\n");
-     
-     }
-     */
     
-    FILE *ofp = fopen("stacktrace.txt", "w+");
+    FILE *outputPointer = fopen("stacktrace.txt", "w+");
     
-    // print the code to file
-    printCodeToFile(ofp, code, codeLen);
+    
+    printCodeToFile(outputPointer, code, codeLen);
     
     
     // print headers for the stack info
-    fprintf(ofp, "\t\t\t\t\tPC\tBP\tSP\tstack \n");
-    fprintf(ofp, "Initial values \t\t\t\t%d\t", PC);
-    fprintf(ofp, "%d\t", basePtr);
-    fprintf(ofp, "%d\t", stackPtr);
-    fprintf(ofp, "%d\n", stack[0]);
+    fprintf(outputPointer, "\t\t\t\t\tPC\tBP\tSP\tstack \n");
+    fprintf(outputPointer, "Initial values \t\t\t\t%d\t", PC);
+    fprintf(outputPointer, "%d\t", basePtr);
+    fprintf(outputPointer, "%d\t", stackPtr);
+    fprintf(outputPointer, "%d\n", stack[0]);
     
     
-    // fetch and execute cycle
-    while ( !halt )
-    {
+    // Fetch and Execute
+    while ( ! halt) {
+        
         line = PC;
-        // comment out next line - used for debugging:
-        //printf("line: %d\n", line);
         
         // fetch the next line of code
         ir = fetch( PC, code );
@@ -249,74 +228,62 @@ int main(void)
         }
         
         
-        // print registers
-        fprintf(ofp, "%d\t", line );
-        fprintf(ofp, "%s\t", getOpCode(ir.op) );
-        fprintf(ofp, "%d\t", ir.r);
+        fprintf(outputPointer, "%d\t", line );
+        fprintf(outputPointer, "%s\t", getOpCode(ir.op) );
+        fprintf(outputPointer, "%d\t", ir.r);
         
-        fprintf(ofp, "%d\t", ir.l);
-        fprintf(ofp, "%d\t", ir.m);
-        fprintf(ofp, "%d\t", PC);
-        fprintf(ofp, "%d\t", basePtr);
-        fprintf(ofp, "%d\t", stackPtr);
+        fprintf(outputPointer, "%d\t", ir.l);
+        fprintf(outputPointer, "%d\t", ir.m);
+        fprintf(outputPointer, "%d\t", PC);
+        fprintf(outputPointer, "%d\t", basePtr);
+        fprintf(outputPointer, "%d\t", stackPtr);
         
-        // print the stack
-        i=1;
-        for( j = 0; j <= stackPtr; j++)
-        {
-            fprintf(ofp, "%d ", stack[j] );
+        // Output stack
+        i = 1;
+        for (j = 0; j <= stackPtr; j++) {
+            fprintf(outputPointer, "%d ", stack[j] );
             // print out separators btwn the activation records
-            if ( j == ActRecLen[i] && j != stackPtr )
-            {
-                fprintf(ofp, "| ");
+            if (j == ActRecLen[i] && j != stackPtr) {
+                fprintf(outputPointer, "| ");
                 i++;
             }
         }
-        fprintf(ofp, "\n");
+        fprintf(outputPointer, "\n");
         
         
-        // set halt flag to 1 on the end condition
-        if ( stackPtr == 0 && basePtr == 0 && PC == 0)
-        {
-            halt = 1;
-        }
+        // If at the end, halt
+        if ( stackPtr == 0 && basePtr == 0 && PC == 0) halt = 1;
         
-    }// end while loop
+    }
     
     
-    fclose(ofp);
-    
-    
+    fclose(outputPointer);
     return 0;
-    
-}// end function main
+}
 
 
-// prints the code to the output file
-void printCodeToFile( FILE *ofp, int code[][MAX_CODE_LENGTH], int codeLength )
-{
-    int i, j;
+void printCodeToFile(FILE* ofp, int code[][MAX_CODE_LENGTH], int codeLength) {
     
     fprintf(ofp, "line\tOP\tR\tL\tM\n");
     
-    for ( i = 0; i < codeLength; i++)
-    {
+    for (int i = 0; i < codeLength; i++) {
         fprintf(ofp, "%d\t", i);
         fprintf(ofp, "%s\t", getOpCode(code[0][i]) );
-        for ( j = 1; j < 4; j++)
-        {
+        
+        for (int j = 1; j < 4; j++) {
             fprintf(ofp, "%d\t", code[j][i]);
         }
+        
         fprintf(ofp, "\n");
     }
     
     fprintf(ofp, "\n");
-}// end function printCode()
+}
 
 
-// get the new instruction record from the code
-instruction fetch( int programCounter, int code[][MAX_CODE_LENGTH] )
-{
+// Fetch next instruction
+instruction fetch(int programCounter, int code[][MAX_CODE_LENGTH]) {
+    
     instruction currentCode;
     
     currentCode.op = code[0][programCounter];
@@ -325,29 +292,27 @@ instruction fetch( int programCounter, int code[][MAX_CODE_LENGTH] )
     currentCode.m = code[3][programCounter];
     
     return currentCode;
-}// end function fetch
+}
 
 
-// function given as part of the assignment specs
-int base( int l, int base, int *stack )
-{
+int base(int l, int base, int* stack) {
+    
     int b1;
     b1 = base;
-    while ( l > 0 )
-    {
+    
+    while (l > 0) {
         b1 = stack[b1 + 1];
         l--;
     }
     
     return b1;
-}// end function base
+}
 
 
-// returns the opCode String associated with the given opCode int
-char* getOpCode( int opCode )
-{
-    switch ( opCode )
-    {
+// Convert opcode number to text
+char* getOpCode(int opCode) {
+    
+    switch (opCode) {
             
         case 1:
             return "LIT";
@@ -397,7 +362,9 @@ char* getOpCode( int opCode )
             return "GTR";
         case 24:
             return "GEQ";
+        
         default:
-            return "error";
-    }// end switch statement
-}// end function getOpCode
+            return "Error";
+            
+    }
+}
