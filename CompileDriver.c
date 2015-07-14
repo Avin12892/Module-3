@@ -160,7 +160,7 @@ void printLexemeList() {
 
 void printAssemblyCode() {
     
-    
+    // Open mcode.txt file
     FILE* parserPointer = fopen("mcode.txt", "r");
     
     
@@ -183,10 +183,11 @@ void printAssemblyCode() {
 
 void printVMExecutionTrace() {
     
+    // Open stacktrace file
     FILE* VMPointer = fopen("stacktrace.txt", "r");
     
-    printf("\n\nPrinting out Virtual Machine output:\n\n");
     
+    printf("\n\nPrinting out Virtual Machine output:\n\n");
     
     if (! VMPointer) {
         printf("\nError finding VM output\n");

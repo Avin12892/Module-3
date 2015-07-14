@@ -3,7 +3,7 @@
 //
 //  Parser.c
 //  --
-//
+//  Should exit with code 1 for expected errors and -1 for unexpected errors (file I/O)
 //  --
 
 
@@ -123,17 +123,17 @@ typedef struct {
 // Functions for processing
 void program(node* currentNode);
 void block(node* currentNode);
-int const_declaration(node* currentNode);
-int  var_declaration(node* currentNode);
-int procedure_declaration(node* currentNode);
+int constantDeclaration(node* currentNode);
+int variableDeclaration(node* currentNode);
+int procedureDeclaration(node* currentNode);
 void statement(node* currentNode);
 void condition(node* currentNode);
-int  rel_op();
+int relOp();
 void expression(node* currentNode);
 void checkCode(node* currentNode);
 void factor(node* currentNode);
 void nextLexeme(node* currentNode);
-void error(int errorType);
+void reportError(int errorType);
 void addtoSymbolTable(int symbolKind, int symListIndex);
 int findToken(int token);
 //
@@ -142,13 +142,12 @@ node* newNode(int data);
 node* insertNode(node* head, node* tail, int token);
 node* getLexemeList();
 int getSymbolList(symbol* st);
-void destroyNodes(node* headNode);
-void emit(int op, int r, int l, int m);
-void printCodeToFile();
-void printNodes(node** head);
-
-
+void storeCode(int op, int r, int l, int m);
+void outputCodeToFile();
+//
+//
 // Global variables
+//
 int currentToken;
 int currentRegister;
 symbol symbolList[50];
@@ -159,7 +158,7 @@ instruction code[CODE_BUFFER];
 int printSuccess;
 int level;
 
-
+//
 int main(int argc, char* argv[]) {
     
     // Initialize globals that need it
@@ -167,7 +166,6 @@ int main(int argc, char* argv[]) {
     level = -1;
     
     
-    // if Compile Driver passes an argument, then print to screen the success result
     if (argc > 1) {
         printSuccess = 1;
     }
@@ -178,313 +176,303 @@ int main(int argc, char* argv[]) {
     currentNode = getLexemeList();
     
     // Retrieve the symbol table and store it
-    int symbolTableSize = getSymbolList(symbolList);
-    
+    getSymbolList(symbolList);
     
     // Begin processing
     program(currentNode);
-    
-    printCodeToFile();
+    outputCodeToFile();
     
     
     return 0;
 }
 
-
-void program(node* currentNode)
-{
+//
+void program(node* currentNode) {
     
     nextLexeme(currentNode);
     
-    block( currentNode );
+    block(currentNode);
     
     // Error for missing period
-    if (currentToken != periodsym ) {
-        error(6);
+    if (currentToken != periodsym) {
+        reportError(6);
     }
-    else
-    {
-        emit( SIO3, 0, 0, 3 );
+    else {
+        storeCode(SIO3, 0, 0, 3);
         
-        if ( printSuccess )
-            printf("No errors, program is syntactically correct\n" );
+        if (printSuccess)
+            printf("\nNo errors, program is syntactically correct.\n");
     }
+    
 }
 
-
-void block(node* currentNode)
-{
-    int space, numVars = 0, numProcs = 0, numConsts = 0;
-    int jmpAddress, procAddress;
-    int i;
+//
+void block(node* currentNode) {
+    
+    int space;
+    int numberOfConstants = 0;
+    int numberOfVars = 0;
+    int numberOfProcs = 0;
+    int jmpAddress;
     
     level++;
-    /*
-     if ( level == 0 )  // we are in main, so only need space for new variables
-     {
-     space = 0;
-     }
-     else    // also create space in AR for funct val, SL, DL, & RA
-     {
-     space = 4;
-     }
-     */
+    
     space = 4;
     
     jmpAddress = codeLine;
-    emit( JMP, 0, 0, 0 );
     
-    // calls the appropriate function based on current token
-    if (currentToken == constsym )
-        numConsts = const_declaration( currentNode );
+    storeCode(JMP, 0, 0, 0);
     
-    if ( currentToken == varsym )
-    {
-        numVars = var_declaration( currentNode );
+    // Checks current token to call the matching function
+    //
+    // constsym
+    if (currentToken == constsym)
+        numberOfConstants = constantDeclaration(currentNode);
+    
+    // varsym
+    if (currentToken == varsym) {
+        numberOfVars = variableDeclaration( currentNode );
     }
     
-    space += numVars;
+    space += numberOfVars;
     
-    if ( currentToken == procsym )
-        numProcs = procedure_declaration( currentNode );
+    // procsym
+    if (currentToken == procsym) {
+        numberOfProcs = procedureDeclaration( currentNode );
+    }
     
     code[jmpAddress].m = codeLine;
     
-    emit( INC, 0, 0 , space );
+    storeCode(INC, 0, 0 , space);
     
-    statement( currentNode );
+    statement(currentNode);
     
+    symbolTableIndex = symbolTableIndex - (numberOfVars + numberOfProcs + numberOfConstants);
     
-    // uncomment next section for debugging purposes
-    /*
-     for ( i = 0; i <= stIndex; i++ )
-     printf("%s\t%d\t%d\t%d\t%d\n", symbolTable[i].name,
-     symbolTable[i].kind, symbolTable[i].val, symbolTable[i].level, symbolTable[i].addr);
-     */
+    storeCode(RTN, 0, 0, 0);
     
-    symbolTableIndex = symbolTableIndex - (numVars + numProcs + numConsts);
-    emit( RTN, 0, 0, 0 );
     
     level--;
-    
 }
 
-
-int const_declaration(node* currentNode)
-{
-    int symListIndex, constIndex, constValue;
-    int constCount = 0;
+//
+int constantDeclaration(node* currentNode) {
     
-    // repeat getting new constants as long as there are more
-    // (indicated by a comma)
-    do{
+    int symListIndex;
+    int constantIndex;
+    int constantValue;
+    int constantCount = 0;
+    
+    // Get constants
+    do {
         
-        nextLexeme( currentNode );
+        nextLexeme(currentNode);
         
-        if ( currentToken != identsym )
-            error(4);
-        
-        // gets the index in the symbol table of the current identifier,
-        // and changes its kind to a constant
-        nextLexeme( currentNode );
-        symListIndex = currentToken;
-        addtoSymbolTable( constant, symListIndex );
-        constCount++;
-        
-        //symbolTable[stIndex].kind = constant;
-        
-        nextLexeme( currentNode );
-        if ( currentToken != eqlsym )
-        {
-            if ( currentToken == becomessym )
-                error(1);
-            else
-                error(3);
+        if (currentToken != identsym) {
+            reportError(4);
         }
         
+        nextLexeme(currentNode);
         
-        nextLexeme( currentNode );
         
-        if ( currentToken != numbersym )
-            error(2);
+        symListIndex = currentToken;
+        addtoSymbolTable(constant, symListIndex);
+        constantCount++;
         
-        // get the value the constant is set to, and sets the value of the
-        // constant to the value of the integer
-        nextLexeme( currentNode );
-        constIndex = currentToken;
-        constValue = atoi( symbolList[constIndex].name );
-        symbolTable[symbolTableIndex].val = constValue;
         
-        nextLexeme( currentNode );
+        nextLexeme(currentNode);
         
-    } while ( currentToken == commasym );
+        if (currentToken != eqlsym) {
+            
+            if (currentToken == becomessym) {
+                reportError(1);
+            }
+            
+            else reportError(3);
+        }
+        
+        nextLexeme(currentNode);
+        
+        if (currentToken != numbersym) {
+            reportError(2);
+        }
+        
+        // Assign value of the constant
+        nextLexeme(currentNode);
+        
+        constantIndex = currentToken;
+        constantValue = atoi(symbolList[constantIndex].name);
+        
+        symbolTable[symbolTableIndex].val = constantValue;
+        
+        nextLexeme(currentNode);
+        
+    } while (currentToken == commasym);
     
-    // if there are no more const, then we should have a semicolon
-    if ( currentToken != semicolonsym )
-        error(5);
+    // Here a semiocolon should be encountered
+    if (currentToken != semicolonsym) {
+        reportError(5);
+    }
     
-    nextLexeme( currentNode );
+    nextLexeme(currentNode);
     
-    return constCount;
     
+    return constantCount;
 }
 
 
-// returns # of variables declared
-int var_declaration(node* currentNode)
-{
+//
+int variableDeclaration(node* currentNode) {
+    
     int symListIndex;
-    int varCount = 0;
+    int variableCount = 0;
     
-    // repeat getting new constants as long as there are more
-    // (indicated by a comma)
-    do{
+    // Get variables
+    do {
         
-        nextLexeme( currentNode );
+        nextLexeme(currentNode);
         
-        if ( currentToken != identsym )
-            error(4);
+        if (currentToken != identsym) {
+            reportError(4);
+        }
         
-        nextLexeme( currentNode );
+        nextLexeme(currentNode);
         
-        // get the symbol table index for the variable and initialize the
-        // appropriate symbol table values
         symListIndex = currentToken;
         
+        addtoSymbolTable(variable, symListIndex);
+        symbolTable[symbolTableIndex].addr = 4 + variableCount;
         
-        addtoSymbolTable( variable, symListIndex );
-        symbolTable[symbolTableIndex].addr = 4 + varCount; // add 4 to account for other
-        // items in activation record  (space from base pointer)
+        nextLexeme(currentNode);
         
+        variableCount++;
         
-        nextLexeme( currentNode );
-        
-        // keep track of the number of variables declared
-        varCount++;
-        
-    } while ( currentToken == commasym );
+    } while (currentToken == commasym);
     
-    // if there are no more const, then we should have a semicolon
-    if ( currentToken != semicolonsym )
-        error(5);
+    // Semicolon should be encountered
+    if (currentToken != semicolonsym) {
+        reportError(5);
+    }
     
-    nextLexeme( currentNode );
-    //emit( INC, 0 , 0, varCount );     // INC
+    nextLexeme(currentNode);
     
-    return varCount;
     
+    return variableCount;
 }
 
-
-int procedure_declaration(node* currentNode)
-{
-    int symListIndex, procCount = 0;
+//
+int procedureDeclaration(node* currentNode) {
     
-    do{
-        procCount++;
-        nextLexeme( currentNode );
+    int symListIndex;
+    int procedureCount = 0;
+    
+    do {
+        procedureCount++;
         
-        if ( currentToken != identsym )
-            error(4);
+        nextLexeme(currentNode);
         
-        nextLexeme( currentNode );
+        if (currentToken != identsym) {
+            reportError(4);
+        }
         
-        // get the symbol table index for the variable and initialize the
-        // appropriate symbol table values
+        nextLexeme(currentNode);
+        
         symListIndex = currentToken;
-        addtoSymbolTable( procedure, symListIndex );
+        
+        addtoSymbolTable(procedure, symListIndex);
+        
         symbolTable[symbolTableIndex].level = level;
         symbolTable[symbolTableIndex].addr = codeLine;
         
-        //printf("Procedure %s is at line %d\n", symbolTable[stIndex].name, symbolTable[stIndex].addr);
+        nextLexeme(currentNode);
         
-        nextLexeme( currentNode );
+        // Semicolon should be encountered
+        if (currentToken != semicolonsym) {
+            reportError(5);
+        }
         
-        // if there are no more const, then we should have a semicolon
-        if ( currentToken != semicolonsym )
-            error(5);
+        nextLexeme(currentNode);
         
-        nextLexeme( currentNode );
+        block(currentNode);
         
-        block( currentNode );
+        // Semicolon should be encountered
+        if (currentToken != semicolonsym) {
+            reportError(5);
+        }
         
-        // if there are no more const, then we should have a semicolon
-        if ( currentToken != semicolonsym )
-            error(5);
+        nextLexeme(currentNode);
         
-        nextLexeme( currentNode );
-        
-    } while ( currentToken == procsym );
+    } while (currentToken == procsym);
     
-    return procCount;
     
+    return procedureCount;
 }
 
-
+//
 void statement(node* currentNode) {
     
-    int i, ctemp, cx1, cx2;
+    int i;
     int index;
-    
-    // ident ":=" expression
-    if (currentToken == identsym )
-    {
-        nextLexeme( currentNode );
+    int codeLineTemp;
+    int codeLineTemp2;
+    int codeLineTemp3;
+
+    // identsym
+    if (currentToken == identsym) {
+        
+        nextLexeme(currentNode);
         
         i = currentToken;
         
         index = findToken(i);
-        //printf("At location %d\n", index);
         
-        if ( index == 0 )
-            error(7);
+        if ( index == 0 ) {
+            reportError(7);
+        }
         
         if (symbolTable[index].kind != variable )
         {
-            error(8);
+            reportError(8);
         }
         
         nextLexeme( currentNode );
         
         if ( currentToken != becomessym )
-            error(9);
+            reportError(9);
         
         nextLexeme( currentNode );
         
         expression( currentNode );
         
-        emit( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // STO = 4
+        storeCode( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );
         currentRegister--;
         
-    } // end ident if
+    }
     
-    // "call" ident
+    // callsym
     else if ( currentToken == callsym )
     {
         nextLexeme( currentNode );
         
         if ( currentToken != identsym )
-            error(23);
+            reportError(23);
         
         nextLexeme( currentNode );
         
         i = findToken( currentToken );
         
         if ( i == 0 )
-            error(7);
+            reportError(7);
         
         if ( symbolTable[i].kind != procedure )
-            error(24);
+            reportError(24);
         
-        // printf( "CAL on index %d for %s is at location %d\n", i, symbolTable[i].name, symbolTable[i].addr);
-        emit ( CAL, 0, level - symbolTable[i].level, symbolTable[i].addr ); // CAL = 5
+        storeCode ( CAL, 0, level - symbolTable[i].level, symbolTable[i].addr );
         
         nextLexeme( currentNode );
-        
     }
     
-    
-    // "begin" statement { ";" statement } "end"
+    // beginsym
     else if ( currentToken == beginsym )
     {
         nextLexeme( currentNode );
@@ -498,13 +486,12 @@ void statement(node* currentNode) {
         }
         
         if ( currentToken != endsym )
-            error(11);
+            reportError(11);
         
         nextLexeme( currentNode );
-    }// end "begin" if
+    }
     
-    
-    // "if" condition "then" statement ["else" statement]
+    // ifsym
     else if ( currentToken == ifsym )
     {
         nextLexeme( currentNode );
@@ -512,12 +499,12 @@ void statement(node* currentNode) {
         condition( currentNode );
         
         if ( currentToken != thensym )
-            error(10);
+            reportError(10);
         
         nextLexeme( currentNode );
         
-        ctemp = codeLine;
-        emit( JPC, currentRegister, 0, 0 );    // JPC
+        codeLineTemp = codeLine;
+        storeCode( JPC, currentRegister, 0, 0 );
         currentRegister--;
         
         statement( currentNode );
@@ -526,55 +513,56 @@ void statement(node* currentNode) {
         {
             nextLexeme( currentNode );
             
-            cx2 = codeLine;
-            emit (JMP, 0, 0, 0 );
+            codeLineTemp3 = codeLine;
+            storeCode (JMP, 0, 0, 0 );
             
-            code[ctemp].m = codeLine;
+            code[codeLineTemp].m = codeLine;
             
             statement( currentNode );
-            code[cx2].m = codeLine;
+            code[codeLineTemp3].m = codeLine;
         }
         else
         {
-            code[ctemp].m = codeLine;
+            code[codeLineTemp].m = codeLine;
         }
         
-    }// end "if" if
+    }
     
-    // "while" condition "do" statement
+    // whilesym
     else if ( currentToken == whilesym )
     {
-        cx1 = codeLine;
+        codeLineTemp2 = codeLine;
         
         nextLexeme( currentNode );
         
         condition( currentNode );
         
-        cx2 = codeLine;
+        codeLineTemp3 = codeLine;
         
-        emit( JPC, currentRegister, 0, 0 );    // JPC
+        storeCode( JPC, currentRegister, 0, 0 );
         
-        if ( currentToken != dosym )
-            error(12);          // then expected
+        if ( currentToken != dosym ) {
+            reportError(12);
+        }
         
         nextLexeme( currentNode );
         
         statement( currentNode );
         
-        emit( JMP, 0, 0, cx1 );    // JMP
+        storeCode( JMP, 0, 0, codeLineTemp2 );
         
-        code[cx2].m = codeLine;
+        code[codeLineTemp3].m = codeLine;
         
-    }// end "while" if
+    }
     
-    // "read" ident
+    // readsym
     else if ( currentToken == readsym )
     {
         nextLexeme( currentNode );
         
         if ( currentToken != identsym )
         {
-            error(18);
+            reportError(18);
         }
         
         nextLexeme(currentNode);
@@ -584,27 +572,26 @@ void statement(node* currentNode) {
         
         if ( symbolTable[index].kind != variable )
         {
-            error(11);
+            reportError(11);
         }
         
-        // read in user input and store it in variable
         currentRegister++;
-        emit( SIO2, currentRegister, 0, 2 );   // SIO R 0 2 - read
-        emit( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // STO
+        storeCode( SIO2, currentRegister, 0, 2 );
+        storeCode( STO, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );
         currentRegister--;
         
         nextLexeme( currentNode );
         
-    }// end "read" if
+    }
     
-    // "write"  ident
+    // writesym
     else if ( currentToken == writesym )
     {
         nextLexeme( currentNode );
         
         if ( currentToken != identsym )
         {
-            error(18);
+            reportError(18);
         }
         
         nextLexeme(currentNode);
@@ -613,220 +600,205 @@ void statement(node* currentNode) {
         
         if ( symbolTable[index].kind != variable )
         {
-            error(11);
+            reportError(11);
         }
         
-        // write variable to screen
         currentRegister++;
-        emit( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // LOD
-        emit( SIO1, currentRegister, 0, 1 );    // SIO R 0 1 - print
+        storeCode( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );
+        storeCode( SIO1, currentRegister, 0, 1 );
         currentRegister--;
         
         nextLexeme( currentNode );
         
-    }// end "write" if
-    
-    // empty string do nothing
+    }
     
     
 }
 
-
-void condition(node* currentNode)
-{
+//
+void condition(node* currentNode) {
+    
     int relOpCode;
     
-    // "odd" expression
-    if ( currentToken == oddsym )
-    {
-        nextLexeme( currentNode );
+    if (currentToken == oddsym) {
+
+        nextLexeme(currentNode);
+        
+        expression(currentNode);
+        
+        storeCode(ODD, currentRegister, 0, 0);
+    } else {
         
         expression( currentNode );
         
-        emit( ODD, currentRegister, 0, 0 );   // ODD
-        
-    }
-    
-    // expression rel_op expression
-    else
-    {
-        expression( currentNode );
-        
-        relOpCode = rel_op( );
-        if ( !relOpCode )
-        {
-            error(13);
+        relOpCode = relOp();
+        if ( ! relOpCode ) {
+            reportError(13);
         }
         
         nextLexeme( currentNode );
         
         expression( currentNode );
         
-        emit( relOpCode, currentRegister-1, currentRegister-1, currentRegister );  // EQL thru GEQ
+        storeCode( relOpCode, currentRegister-1, currentRegister-1, currentRegister );
+        
         currentRegister--;
     }
 }
 
-// returns token value for relational op, returns 0 if it is not one
-int rel_op()
-{
-    switch ( currentToken )
-    {
+//
+int relOp() {
+    
+    switch (currentToken) {
+            
         case eqlsym:
-            return EQL;  // 19
+            return EQL;
             break;
         case neqsym:
-            return NEQ;  // 20
+            return NEQ;
             break;
         case lessym:
-            return LSS;  // 21
+            return LSS;
             break;
         case leqsym:
-            return LEQ;  // 22
+            return LEQ;
             break;
         case gtrsym:
-            return GTR;  // 23
+            return GTR;
             break;
         case geqsym:
-            return GEQ;  // 24
+            return GEQ;
             break;
+        // Some error
         default:
-            return 0;   // error
+            return 0;
     }
     
 }
 
-
-void expression(node* currentNode)
-{
-    int addop;
+//
+void expression(node* currentNode) {
     
-    // if there is a plus or minus symbol in front
-    if ( currentToken == plussym || currentToken == minussym )
-    {
-        addop = currentToken;
+    int addOp;
+    
+    if (currentToken == plussym || currentToken == minussym) {
+
+        addOp = currentToken;
         
-        nextLexeme( currentNode );
-        checkCode ( currentNode );
+        nextLexeme(currentNode);
+        checkCode (currentNode);
         
-        emit( NEG, currentRegister, currentRegister, 0 );  // 12
-    }
-    else
-    {
+        storeCode(NEG, currentRegister, currentRegister, 0);
+    } else {
         checkCode ( currentNode );
     }
-    // keep looping as long as there is another plus or minus symbol
-    while ( currentToken == plussym || currentToken == minussym )
-    {
-        addop = currentToken;
+    
+    while ( currentToken == plussym || currentToken == minussym ) {
+
+        addOp = currentToken;
         
         nextLexeme( currentNode );
         checkCode( currentNode );
         
-        if ( addop == plussym )
-        {
-            emit ( ADD, currentRegister-1, currentRegister-1, currentRegister );    // ADD = 13
+        if ( addOp == plussym ) {
+            storeCode ( ADD, currentRegister-1, currentRegister-1, currentRegister );
             currentRegister--;
         }
-        if ( addop == minussym )
-        {
-            emit ( SUB, currentRegister-1, currentRegister-1, currentRegister );    // SUB = 14
+        if ( addOp == minussym ) {
+            storeCode ( SUB, currentRegister-1, currentRegister-1, currentRegister );
             currentRegister--;
         }
     }
     
 }
 
-
+//
 void checkCode(node *currentNode) {
     
-    int mulOp;
+    int multiplicationOp;
     
     factor( currentNode );
     
-    // keep looping if there are more divide or multiplication symbols
-    while ( currentToken == slashsym || currentToken == multsym )
-    {
-        mulOp = currentToken;
+    while ( currentToken == slashsym || currentToken == multsym ) {
+
+        multiplicationOp = currentToken;
         
         nextLexeme( currentNode );
         factor( currentNode );
         
-        if ( mulOp == multsym )     // Multiplication
-        {
-            emit( MUL, currentRegister-1, currentRegister-1, currentRegister ); // MUL = 15
+        if ( multiplicationOp == multsym ) {
+            storeCode( MUL, currentRegister-1, currentRegister-1, currentRegister );
             currentRegister--;
         }
-        if ( mulOp == slashsym )    // Division
-        {
-            emit( DIV, currentRegister-1, currentRegister-1, currentRegister ); // DIV = 16
+        if ( multiplicationOp == slashsym ) {
+            storeCode( DIV, currentRegister-1, currentRegister-1, currentRegister );
             currentRegister--;
         }
     }
+    
 }
 
-
-void factor(node* currentNode)
-{
-    int index, i;
+//
+void factor(node* currentNode) {
+    
+    int index;
+    int i;
     int value;
     
-    // identifier
-    if ( currentToken == identsym )
-    {
+    // identsym
+    if ( currentToken == identsym ) {
+        
         nextLexeme( currentNode );
         i = currentToken;
         index = findToken(i);
         
         currentRegister++;
         
-        if ( symbolTable[index].kind == variable )
-        {
-            emit( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );    // LOD = 3
+        if ( symbolTable[index].kind == variable ) {
+            storeCode( LOD, currentRegister, level - symbolTable[index].level, symbolTable[index].addr );
         }
-        else if ( symbolTable[index].kind == constant )
-        {
-            emit( LIT, currentRegister, 0, symbolTable[index].val );     // LIT = 1
-        }
-        else
-        {
-            error(14);
+        else if ( symbolTable[index].kind == constant ) {
+            storeCode( LIT, currentRegister, 0, symbolTable[index].val );
+        } else {
+            reportError(14);
         }
         
         nextLexeme( currentNode );
     }
-    // number
-    else if ( currentToken == numbersym )
-    {
+
+    else if ( currentToken == numbersym ) {
+
         nextLexeme( currentNode );
         i = currentToken;
-        //index = findToken(i);
         
         value = atoi( symbolList[i].name );
+
         currentRegister++;
-        emit( LIT, currentRegister, 0, value );                   // LIT = 1
+        
+        storeCode( LIT, currentRegister, 0, value );
         
         nextLexeme( currentNode );
     }
-    // "(" expression ")"
-    else if ( currentToken == lparentsym )
-    {
+
+    else if ( currentToken == lparentsym ) {
+
         nextLexeme( currentNode );
         expression( currentNode );
         
-        if ( currentToken != rparentsym )
-            error(15);
+        if ( currentToken != rparentsym ) {
+            reportError(15);
+        }
         
         nextLexeme( currentNode );
+    } else {
+        reportError(16);
     }
-    else
-        error(16);
     
 }
 
 
 // Output an appropriate error message
-void error(int errorType) {
+void reportError(int errorType) {
     
     printf("Error ");
     
@@ -900,7 +872,7 @@ void error(int errorType) {
     
     printf("\n");
     
-    exit(-1);
+    exit(1);
 }
 
 
@@ -909,15 +881,12 @@ node* getLexemeList() {
     
     int buffer;
     
-    FILE *lexemelistPointer;
+    // Open lexemelist
+    FILE* lexemelistPointer = fopen("lexemelist.txt", "rb");
     
-    // create a pointer for the input file
-    lexemelistPointer = fopen("lexemelist.txt", "rb");
-    
-    // exit program if file not found
     if ( ! lexemelistPointer) {
-        printf("Parser unable to open lexemelist\n");
-        exit(1);
+        printf("\nParser unable to open lexemelist.\n");
+        exit(-1);
     }
     
     node* head = NULL;
@@ -927,7 +896,7 @@ node* getLexemeList() {
     
     head = tail = insertNode(head, tail, buffer);
     
-    // keep scanning until reaching the end of the file
+    // Scan to EOF
     while ( fscanf(lexemelistPointer, "%d", &buffer) != EOF) {
         
         tail = insertNode(head, tail, buffer);
@@ -941,7 +910,7 @@ node* getLexemeList() {
 }
 
 
-// Retrieve the next tokenized lexeme from the linked list
+// Retrieve the next lexeme in the linked list
 void nextLexeme(node* currentNode) {
     
     currentToken = currentNode->token;
@@ -953,26 +922,10 @@ void nextLexeme(node* currentNode) {
 }
 
 
-// insert a new node into the linked list
-node* insertNode(node* head, node* tail, int token)
-{
-    // if this is the first node
-    if ( head == NULL )
-    {
-        return newNode( token );
-    }
-    else
-    {
-        tail->next = newNode( token );
-        return tail->next;
-    }
-    
-}
-
-
+// Create a new node
 node* newNode(int data) {
     
-    node *pointer = malloc(sizeof(node));
+    node* pointer = malloc(sizeof(node));
     
     pointer->token = data;
     pointer->next = NULL;
@@ -982,71 +935,69 @@ node* newNode(int data) {
 }
 
 
+// Linked list insert
+node* insertNode(node* head, node* tail, int token) {
+    
+    // Start a list if needed
+    if (head == NULL) {
+        return newNode(token);
+    }
+    else {
+        tail->next = newNode(token);
+        return tail->next;
+    }
+    
+}
+
+
 // Retrieve the symbol table and store it in an array, returns the length
 int getSymbolList(symbol* symList) {
     
     char buffer[MAX_IDENT_LENGTH + 1];
     int i = 0;
     
-    FILE *lexemelistPointer;
+    // Open symboltable file
+    FILE* symboltablePointer = fopen("symboltable.txt", "rb");
     
-    // create a pointer for the input file
-    lexemelistPointer = fopen("symboltable.txt", "rb");
-    
-    // exit program if file not found
-    if (lexemelistPointer == NULL) {
-        printf("File with symbol table info not found\n");
-        exit(1);
+    if ( ! symboltablePointer) {
+        printf("\nParser unable to open symbol table file.\n");
+        exit(-1);
     }
-    
-    // keep scanning until reaching the end of the file
-    while ( fscanf(lexemelistPointer, "%s", buffer) != EOF)
-    {
-        strcpy(symList[i].name, buffer );
-        //st[i].kind = -1;
-        //st[i].val = -1;
-        //st[i].level = -1;
-        //st[i].addr = -1;
+    // Scan to EOF
+    while (fscanf(symboltablePointer, "%s", buffer) != EOF) {
+        strcpy(symList[i].name, buffer);
         i++;
     }
     
-    fclose( lexemelistPointer );
+    fclose(symboltablePointer);
     
     return i;
     
-}// end function getSymbolTable
-
+}
 
 
 // Print the code to output
-void emit(int op, int r, int l, int m)
-{
+void storeCode(int op, int r, int l, int m) {
+    
     code[codeLine].op = op;
     code[codeLine].r = r;
     code[codeLine].l = l;
     code[codeLine].m = m;
     
-    //fprintf( outFP, "%d %d %d %d\n", op, r, l, m );
-    
     codeLine++;
-    
 }
 
 
-// Prints code to output file
-void printCodeToFile()
-{
-    int i;
+// Prints code to the output file
+void outputCodeToFile() {
     
-    FILE *ofp;
-    ofp = fopen("mcode.txt", "w");
+    FILE* output = fopen("mcode.txt", "w");
     
-    for ( i = 0; i < codeLine; i++ )
-    {
-        fprintf( ofp, "%d %d %d %d\n", code[i].op, code[i].r, code[i].l,
-                code[i].m );
+    for (int i = 0; i < codeLine; i++) {
+        fprintf(output, "%d %d %d %d\n", code[i].op, code[i].r, code[i].l, code[i].m);
     }
-    fclose(ofp);
+    
+    fclose(output);
 }
 
 
@@ -1055,23 +1006,22 @@ void addtoSymbolTable(int symbolKind, int symListIndex) {
     
     symbolTableIndex++;
     
-    // copy name from symbolList to symbolTable
-    strcpy( symbolTable[symbolTableIndex].name, symbolList[symListIndex].name );
+    strcpy(symbolTable[symbolTableIndex].name, symbolList[symListIndex].name);
     
     symbolTable[symbolTableIndex].level = level;
     symbolTable[symbolTableIndex].kind = symbolKind;
-    
 }
 
 
-// Locates a token in the symbol table
+// Locate a token in the symbol table
 int findToken(int token) {
     
     int location;
     
-    for ( location = symbolTableIndex; location > 0; location-- )
-        if ( strcmp( symbolTable[location].name, symbolList[token].name ) == 0 )
+    for (location = symbolTableIndex; location > 0; location--)
+        if (strcmp(symbolTable[location].name, symbolList[token].name) == 0) {
             return location;
+        }
     
     return location;
 }
