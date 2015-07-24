@@ -509,6 +509,7 @@ void statement(node* currentNode) {
         
         statement( currentNode );
         
+        // elsesym
         if ( currentToken == elsesym )
         {
             nextLexeme( currentNode );
