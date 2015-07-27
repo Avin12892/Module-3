@@ -25,7 +25,6 @@
 #define NAME_SIZE 12
 
 #define INPUT_NAME "input.txt"
-#define OUTPUT_NAME "lexemetable.txt"
 
 // Struct to hold symbols
 typedef struct {
@@ -86,7 +85,7 @@ node* createNode();
 node* isLetter(char firstLetter, FILE* input, node* tail, FILE* output);
 node* isNumber(char firstDigit, FILE* input, node* tail, FILE* output);
 node* isSymbol(char firstSymbol, FILE* input, node* tail, FILE* output);
-void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol* table, int* numberSymbol);
+void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, FILE* lexemeTableFP, symbol* table, int* numberSymbol);
 int putInSymbolTable(symbol* table, char* text, int* numberSymbol);
 
 
@@ -126,9 +125,9 @@ int main() {
     }
     
     // Create output file
-    FILE *output = fopen(OUTPUT_NAME, "w+");
+    FILE *cleanOutput = fopen("cleaninput.txt", "w+");
     
-    fprintf(output, "Source Program:\n");
+    fprintf(cleanOutput, "Source Program:\n");
     
     // Prime with the first character from input
     currentChar = fgetc(input);
@@ -141,7 +140,7 @@ int main() {
         if (isalpha(currentChar)) {
             
             letter = currentChar;
-            tail = isLetter(currentChar, input, tail, output);
+            tail = isLetter(currentChar, input, tail, cleanOutput);
             currentChar = fgetc(input);
         
         }
@@ -149,7 +148,7 @@ int main() {
         // Is a number
         else if (isdigit(currentChar)) {
             
-            tail = isNumber(currentChar, input, tail, output );
+            tail = isNumber(currentChar, input, tail, cleanOutput );
             currentChar = fgetc(input);
         
         }
@@ -158,14 +157,14 @@ int main() {
         else if (ispunct(currentChar)) {
             
             letter = currentChar;
-            tail = isSymbol(currentChar, input, tail, output);
+            tail = isSymbol(currentChar, input, tail, cleanOutput);
             currentChar = fgetc(input);
             
         }
         
         // White space
         else {
-            fprintf(output, "%c", currentChar);
+            fprintf(cleanOutput, "%c", currentChar);
             currentChar = fgetc(input);
         }
     
@@ -173,47 +172,53 @@ int main() {
     
     fclose (input);
     
-    // Files for output
-    FILE* lexemeFP = fopen("lexemelist.txt", "w+");
-    FILE* symbTabFP = fopen("symboltable.txt", "w+");
+    // Files for outputs
+    FILE* lexemeListFP = fopen("lexemelist.txt", "w+");
+    FILE* symbolTableFP = fopen("symboltable.txt", "w+");
+    FILE* lexemeTableFP = fopen("lexemetable.txt", "w+");
     
     
-    fprintf(output, "\n\nLexeme Table:\n");
-    fprintf(output, "lexeme\t\ttoken type\n");
+    fprintf(cleanOutput, "\n\nLexeme Table:\n");
+    fprintf(lexemeTableFP, "\n\nLexeme Table:\n");
+    fprintf(cleanOutput, "lexeme\t\ttoken type\n");
+    fprintf(lexemeTableFP, "lexeme\t\ttoken type\n");
+    
     for (; head->next != NULL; head = head->next ) {
-        fprintf(output, "%s\t\t", head->word);
-        findLexeme(output, head->word, lexemeFP, table, &numberOfSymbols);
+        fprintf(cleanOutput, "%s\t\t", head->word);
+        fprintf(lexemeTableFP, "%s\t\t", head->word);
+        findLexeme(cleanOutput, head->word, lexemeListFP, lexemeTableFP, table, &numberOfSymbols);
     }
     
 
-    fclose(lexemeFP);
+    fclose(lexemeListFP);
+    fclose(lexemeTableFP);
     
     
-    fprintf(output, "\nSymbol Table:\n");
-    fprintf(output, "index\t\tsymbol\n");
+    fprintf(cleanOutput, "\nSymbol Table:\n");
+    fprintf(cleanOutput, "index\t\tsymbol\n");
  
     
     for (int i = 0; i < numberOfSymbols; i++ ) {
         
-        fprintf(output, "%d\t\t%s \n", i, table[i].name);
-        fprintf(symbTabFP, "%s ", table[i].name);
+        fprintf(cleanOutput, "%d\t\t%s \n", i, table[i].name);
+        fprintf(symbolTableFP, "%s ", table[i].name);
     }
     
     
-    fclose( symbTabFP);
+    fclose( symbolTableFP);
     
     
     FILE *newIFP = fopen("lexemelist.txt", "rb");
     
-    fprintf(output, "\nLexeme List:\n");
+    fprintf(cleanOutput, "\nLexeme List:\n");
     while (fscanf(newIFP, "%d", &buffer) != EOF)
     {
-        fprintf(output, "%d ", buffer);
+        fprintf(cleanOutput, "%d ", buffer);
     }
     
     
     fclose(newIFP);
-    fclose (output);
+    fclose (cleanOutput);
 }
 
 // Make a new node
@@ -495,7 +500,7 @@ node* isSymbol(char firstSymbol, FILE* input, node* tail, FILE* output)
 }
 
 // Tokenizes a node
-void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol* table, int* numberSymbol)
+void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, FILE* lexemeTableFP, symbol* table, int* numberSymbol)
 {
     int index;
     
@@ -514,58 +519,72 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
         // list file for all reserved words
         if ( strcmp( text, "odd") == 0 ) {
             fprintf (outputPointer, "%d\n", 8 );
+            fprintf (lexemeTableFP, "%d\n", 8 );
             fprintf (lexemelistPointer, "%d ", 8 );
         }
         else if ( strcmp( text, "begin") == 0 ) {
             fprintf (outputPointer, "%d\n", 21 );
+            fprintf (lexemeTableFP, "%d\n", 21 );
             fprintf (lexemelistPointer, "%d ", 21 );
         }
         else if ( strcmp( text, "end") == 0 ) {
             fprintf (outputPointer, "%d\n", 22 );
+            fprintf (lexemeTableFP, "%d\n", 22 );
             fprintf (lexemelistPointer, "%d ", 22 );
         }
         else if ( strcmp( text, "if") == 0 ) {
             fprintf (outputPointer, "%d\n", 23 );
+            fprintf (lexemeTableFP, "%d\n", 23 );
             fprintf (lexemelistPointer, "%d ", 23 );
         }
         else if ( strcmp( text, "then") == 0 ) {
             fprintf (outputPointer, "%d\n", 24 );
+            fprintf (lexemeTableFP, "%d\n", 24 );
             fprintf (lexemelistPointer, "%d ", 24 );
         }
         else if ( strcmp( text, "while") == 0 ) {
             fprintf (outputPointer, "%d\n", 25 );
+            fprintf (lexemeTableFP, "%d\n", 25 );
             fprintf (lexemelistPointer, "%d ", 25 );
         }
         else if ( strcmp( text, "do") == 0 ) {
             fprintf (outputPointer, "%d\n", 26 );
+            fprintf (lexemeTableFP, "%d\n", 26 );
             fprintf (lexemelistPointer, "%d ", 26 );
         }
         else if ( strcmp( text, "call") == 0 ) {
             fprintf (outputPointer, "%d\n", 27 );
+            fprintf (lexemeTableFP, "%d\n", 27 );
             fprintf (lexemelistPointer, "%d ", 27 );
         }
         else if ( strcmp( text, "const") == 0 ) {
             fprintf (outputPointer, "%d\n", 28 );
+            fprintf (lexemeTableFP, "%d\n", 28 );
             fprintf (lexemelistPointer, "%d ", 28 );
         }
         else if ( strcmp( text, "var") == 0 ) {
             fprintf (outputPointer, "%d\n", 29 );
+            fprintf (lexemeTableFP, "%d\n", 29 );
             fprintf (lexemelistPointer, "%d ", 29 );
         }
         else if ( strcmp( text, "procedure") == 0 ) {
             fprintf (outputPointer, "%d\n", 30 );
+            fprintf (lexemeTableFP, "%d\n", 30 );
             fprintf (lexemelistPointer, "%d ", 30 );
         }
         else if ( strcmp( text, "write") == 0 ) {
             fprintf (outputPointer, "%d\n", 31 );
+            fprintf (lexemeTableFP, "%d\n", 31 );
             fprintf (lexemelistPointer, "%d ", 31 );
         }
         else if ( strcmp( text, "read") == 0 ) {
             fprintf (outputPointer, "%d\n", 32 );
+            fprintf (lexemeTableFP, "%d\n", 32 );
             fprintf (lexemelistPointer, "%d ", 32 );
         }
         else if ( strcmp( text, "else") == 0 ) {
             fprintf (outputPointer, "%d\n", 33 );
+            fprintf (lexemeTableFP, "%d\n", 33 );
             fprintf (lexemelistPointer, "%d ", 33 );
         }
         
@@ -573,6 +592,7 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
         {
             // print the appropriate token "2" and add it to the symbol table
             fprintf (outputPointer, "2\n" );
+            fprintf (lexemeTableFP, "2\n" );
             index = putInSymbolTable( table, text, numberSymbol );
             fprintf (lexemelistPointer, "2 %d ", index );
         }
@@ -589,6 +609,7 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
         }
         // print the appropriate token "3" and add it to the symbol table
         fprintf(outputPointer, "3\n");
+        fprintf(lexemeTableFP, "3\n");
         index = putInSymbolTable( table, text, numberSymbol );
         fprintf (lexemelistPointer, "3 %d ", index );
     }// end if first character is number
@@ -602,38 +623,47 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
         {
             case '+' :
                 fprintf(outputPointer, "%d\n", 4);
+                fprintf(lexemeTableFP, "%d\n", 4);
                 fprintf (lexemelistPointer, "%d ", 4);
                 break;
             case '-' :
                 fprintf(outputPointer, "%d\n", 5);
+                fprintf(lexemeTableFP, "%d\n", 5);
                 fprintf (lexemelistPointer, "%d ", 5);
                 break;
             case '*' :
                 fprintf(outputPointer, "%d\n", 6);
+                fprintf(lexemeTableFP, "%d\n", 6);
                 fprintf (lexemelistPointer, "%d ", 6);
                 break;
             case '/' :
                 fprintf(outputPointer, "%d\n", 7);
+                fprintf(lexemeTableFP, "%d\n", 7);
                 fprintf (lexemelistPointer, "%d ", 7);
                 break;
             case '(' :
                 fprintf(outputPointer, "%d\n", 15);
+                fprintf(lexemeTableFP, "%d\n", 15);
                 fprintf (lexemelistPointer, "%d ", 15);
                 break;
             case ')' :
                 fprintf(outputPointer, "%d\n", 16);
+                fprintf(lexemeTableFP, "%d\n", 16);
                 fprintf (lexemelistPointer, "%d ", 16);
                 break;
             case '=' :
                 fprintf(outputPointer, "%d\n", 9);
+                fprintf(lexemeTableFP, "%d\n", 9);
                 fprintf (lexemelistPointer, "%d ", 9);
                 break;
             case ',' :
                 fprintf(outputPointer, "%d\n", 17);
+                fprintf(lexemeTableFP, "%d\n", 17);
                 fprintf (lexemelistPointer, "%d ", 17);
                 break;
             case '.' :
                 fprintf(outputPointer, "%d\n", 19);
+                fprintf(lexemeTableFP, "%d\n", 19);
                 fprintf (lexemelistPointer, "%d ", 19);
                 break;
             case '<' :     // <, <>, <=
@@ -643,17 +673,20 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
                     if ( strcmp(text, "<>") == 0 )
                     {
                         fprintf(outputPointer, "%d\n", 10);
+                        fprintf(lexemeTableFP, "%d\n", 10);
                         fprintf (lexemelistPointer, "%d ", 10);
                     }
                     else if ( strcmp(text, "<=") == 0 )
                     {
                         fprintf(outputPointer, "%d\n", 12);
+                        fprintf(lexemeTableFP, "%d\n", 12);
                         fprintf (lexemelistPointer, "%d ", 12);
                     }
                 }
                 else
                 {
                     fprintf(outputPointer, "%d\n", 11);
+                    fprintf(lexemeTableFP, "%d\n", 11);
                     fprintf (lexemelistPointer, "%d ", 11);
                 }
                 break;
@@ -663,21 +696,25 @@ void findLexeme(FILE* outputPointer, char* text, FILE* lexemelistPointer, symbol
                     if ( strcmp(text, ">=") == 0 )
                     {
                         fprintf(outputPointer, "%d\n", 14);
+                        fprintf(lexemeTableFP, "%d\n", 14);
                         fprintf (lexemelistPointer, "%d ", 14);
                     }
                 }
                 else
                 {
                     fprintf(outputPointer, "%d\n", 13);
+                    fprintf(lexemeTableFP, "%d\n", 13);
                     fprintf (lexemelistPointer, "%d ", 13);
                 }
                 break;
             case ';' :
                 fprintf(outputPointer, "%d\n", 18);
+                fprintf(lexemeTableFP, "%d\n", 18);
                 fprintf (lexemelistPointer, "%d ", 18);
                 break;
             case ':' :
                 fprintf(outputPointer, "%d\n", 20);
+                fprintf(lexemeTableFP, "%d\n", 20);
                 fprintf (lexemelistPointer, "%d ", 20);
                 break;
                 
