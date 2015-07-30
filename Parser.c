@@ -416,7 +416,7 @@ void statement(node* currentNode) {
     int codeLineTemp;
     int codeLineTemp2;
     int codeLineTemp3;
-
+    
     // identsym
     if (currentToken == identsym) {
         
@@ -622,7 +622,7 @@ void condition(node* currentNode) {
     int relOpCode;
     
     if (currentToken == oddsym) {
-
+        
         nextLexeme(currentNode);
         
         expression(currentNode);
@@ -670,7 +670,7 @@ int relOp() {
         case geqsym:
             return GEQ;
             break;
-        // Some error
+            // Some error
         default:
             return 0;
     }
@@ -683,7 +683,7 @@ void expression(node* currentNode) {
     int addOp;
     
     if (currentToken == plussym || currentToken == minussym) {
-
+        
         addOp = currentToken;
         
         nextLexeme(currentNode);
@@ -695,7 +695,7 @@ void expression(node* currentNode) {
     }
     
     while ( currentToken == plussym || currentToken == minussym ) {
-
+        
         addOp = currentToken;
         
         nextLexeme( currentNode );
@@ -721,7 +721,7 @@ void checkCode(node *currentNode) {
     factor( currentNode );
     
     while ( currentToken == slashsym || currentToken == multsym ) {
-
+        
         multiplicationOp = currentToken;
         
         nextLexeme( currentNode );
@@ -766,23 +766,23 @@ void factor(node* currentNode) {
         
         nextLexeme( currentNode );
     }
-
+    
     else if ( currentToken == numbersym ) {
-
+        
         nextLexeme( currentNode );
         i = currentToken;
         
         value = atoi( symbolList[i].name );
-
+        
         currentRegister++;
         
         storeCode( LIT, currentRegister, 0, value );
         
         nextLexeme( currentNode );
     }
-
+    
     else if ( currentToken == lparentsym ) {
-
+        
         nextLexeme( currentNode );
         expression( currentNode );
         
@@ -992,10 +992,13 @@ void storeCode(int op, int r, int l, int m) {
 // Prints code to the output file
 void outputCodeToFile() {
     
-    FILE* output = fopen("mcode.txt", "w");
+    FILE* output = fopen("temp.txt", "w");
+    FILE* mcodeOutput = fopen("mcode.txt", "w");
     
     for (int i = 0; i < codeLine; i++) {
         fprintf(output, "%d %d %d %d\n", code[i].op, code[i].r, code[i].l, code[i].m);
+        fprintf(mcodeOutput, "%d %d %d\n", code[i].op, code[i].l, code[i].m);
+
     }
     
     fclose(output);

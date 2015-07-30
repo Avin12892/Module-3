@@ -87,10 +87,10 @@ int main() {
     int halt = 0;
     
     
-    FILE *inputPointer = fopen("mcode.txt", "rb");
+    FILE *inputPointer = fopen("temp.txt", "rb");
     
     if ( ! inputPointer) {
-        printf("Code for virtual machine not found\n");
+        printf("Code for PMachine not found\n");
         exit(1);
     }
     
@@ -115,8 +115,8 @@ int main() {
     
     
     // print headers for the stack info
-    fprintf(outputPointer, "\t\t\t\t\tPC\tBP\tSP\tstack \n");
-    fprintf(outputPointer, "Initial values \t\t\t\t%d\t", PC);
+    fprintf(outputPointer, "\t\t\t\tPC\tBP\tSP\tstack \n");
+    fprintf(outputPointer, "Initial values \t\t\t%d\t", PC);
     fprintf(outputPointer, "%d\t", basePtr);
     fprintf(outputPointer, "%d\t", stackPtr);
     fprintf(outputPointer, "%d\n", stack[0]);
@@ -264,14 +264,16 @@ int main() {
 
 void outputCodeToFile(FILE* ofp, int code[][MAX_CODE_LENGTH], int codeLength) {
     
-    fprintf(ofp, "line\tOP\tR\tL\tM\n");
+    fprintf(ofp, "line\tOP\tL\tM\n");
     
     for (int i = 0; i < codeLength; i++) {
         fprintf(ofp, "%d\t", i);
         fprintf(ofp, "%s\t", getOpCode(code[0][i]) );
         
         for (int j = 1; j < 4; j++) {
-            fprintf(ofp, "%d\t", code[j][i]);
+            if (j != 1) {
+                fprintf(ofp, "%d\t", code[j][i]);
+            }
         }
         
         fprintf(ofp, "\n");
